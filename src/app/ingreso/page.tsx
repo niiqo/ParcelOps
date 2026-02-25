@@ -1,45 +1,62 @@
 "use client";
 
-import { useState, useEffect, FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { db } from "@/lib/firebase";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+
+type TipoPaquete = "entrega" | "envio" | "devolucion";
+type Empresa = "SEUR";
 
 export default function IngresoPage() {
+  const barcodeRef = useRef<HTMLInputElement | null>(null);
+
   const [barcode, setBarcode] = useState("");
   const [nombre, setNombre] = useState("");
-  const [empresa, setEmpresa] = useState("");
-  const [tipo, setTipo] = useState("entrega");
+  const [empresa, setEmpresa] = useState<Empresa>("SEUR");
+  const [tipo, setTipo] = useState<TipoPaquete>("entrega");
   const [estante, setEstante] = useState("");
   const [mensaje, setMensaje] = useState("");
+  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
-    const input = document.getElementById("barcode");
-    input?.focus();
+    barcodeRef.current?.focus();
   }, []);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (guardando) return;
 
-    if (!barcode) {
+    const barcodeClean = barcode.trim();
+    const nombreClean = nombre.trim();
+    const empresaClean = empresa.trim();
+    const estanteClean = estante.trim();
+
+    if (!barcodeClean) {
       setMensaje("El barcode es obligatorio.");
+      barcodeRef.current?.focus();
       return;
     }
 
     try {
-      const docRef = doc(db, "packages", barcode);
+      setGuardando(true);
+      setMensaje("");
+
+      const docRef = doc(db, "packages", barcodeClean);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
         setMensaje("⚠️ Ya existe un paquete con ese barcode.");
+        barcodeRef.current?.focus();
         return;
       }
 
       await setDoc(docRef, {
-        barcode,
-        nombre,
+        barcode: barcodeClean,
+        nombre: nombreClean,
+        nombreLower: (nombre || "").trim().toLowerCase(),
         empresa,
         tipo,
-        estante,
+        estante: estanteClean,
         fechaIngreso: serverTimestamp(),
         resultadoRetiro: null,
         fechaSalida: null,
@@ -49,18 +66,19 @@ export default function IngresoPage() {
 
       setMensaje("✅ Paquete registrado correctamente.");
 
-      // limpiar formulario
+      // limpiar
       setBarcode("");
       setNombre("");
-      setEmpresa("");
+      setEmpresa("SEUR");
       setTipo("entrega");
       setEstante("");
 
-      const input = document.getElementById("barcode");
-      input?.focus();
+      barcodeRef.current?.focus();
     } catch (error) {
       console.error(error);
       setMensaje("❌ Error al guardar el paquete.");
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -73,9 +91,12 @@ export default function IngresoPage() {
           <label>Barcode *</label>
           <br />
           <input
-            id="barcode"
+            ref={barcodeRef}
             value={barcode}
             onChange={(e) => setBarcode(e.target.value)}
+            autoComplete="off"
+            inputMode="text"
+            required
           />
         </div>
 
@@ -85,22 +106,28 @@ export default function IngresoPage() {
           <input
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
+            autoComplete="off"
           />
         </div>
 
         <div>
           <label>Empresa</label>
           <br />
-          <input
-            value={empresa}
-            onChange={(e) => setEmpresa(e.target.value)}
-          />
+          <select
+  value={empresa}
+  onChange={(e) => setEmpresa(e.target.value as Empresa)}
+>
+  <option value="SEUR">SEUR</option>
+</select>
         </div>
 
         <div>
           <label>Tipo</label>
           <br />
-          <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
+          <select
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value as TipoPaquete)}
+          >
             <option value="entrega">Entrega</option>
             <option value="envio">Envío</option>
             <option value="devolucion">Devolución</option>
@@ -113,14 +140,17 @@ export default function IngresoPage() {
           <input
             value={estante}
             onChange={(e) => setEstante(e.target.value)}
+            autoComplete="off"
           />
         </div>
 
         <br />
-        <button type="submit">Guardar</button>
+        <button type="submit" disabled={guardando}>
+          {guardando ? "Guardando..." : "Guardar"}
+        </button>
       </form>
 
-      <p>{mensaje}</p>
+      {mensaje ? <p>{mensaje}</p> : null}
     </div>
   );
 }
