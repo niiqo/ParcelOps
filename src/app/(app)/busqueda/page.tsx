@@ -22,7 +22,7 @@ type Resultado = "cliente" | "transportista" | null;
 type Row = {
   barcode: string;
   nombre?: string;
-  nombreLower?: string;
+  nombreLower: string;
   empresa?: string;
   tipo?: Tipo;
   estante?: string;
@@ -55,10 +55,15 @@ export default function BusquedaPage() {
         const snap = await getDocs(q);
         const list: Row[] = snap.docs.map((d) => {
         const data = d.data() as PackageDoc;
+
+        const nombre = data.nombre?.trim() || "";
+        const nombreLower =
+            data.nombreLower?.trim().toLowerCase() || nombre.toLowerCase();
+
           return {
             barcode: d.id,
             nombre: data.nombre,
-            nombreLower: data.nombreLower ?? (data.nombre || "").toLowerCase(),
+            nombreLower,
             empresa: data.empresa,
             tipo: data.tipo,
             estante: data.estante,
@@ -88,31 +93,34 @@ const filtered = useMemo(() => {
   if (!termNorm) return base;
 
   const tokens = termNorm.split(/\s+/).filter(Boolean);
+  return base.filter((r) => tokens.every((t) => r.nombreLower.includes(t)));
+  }, [allActive, termNorm, includeDelivered]);
 
-  return base.filter((r) => {
-    const text = r.nombreLower ?? "";
-    return tokens.every((t) => text.includes(t));
-  });
-}, [allActive, termNorm, includeDelivered]);
+const entregarACliente = async (barcode: string) => {
+  setMsg("");
+  setBusyId(barcode);
 
-  const entregarACliente = async (barcode: string) => {
-    setMsg("");
-    setBusyId(barcode);
-    try {
-      const ref = doc(db, "packages", barcode);
-      await updateDoc(ref, {
-        resultadoRetiro: "cliente",
-        fechaSalida: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+  try {
+    const ref = doc(db, "packages", barcode);
 
-      // Sacarlo de "activos" (porque ya salió del depósito)
-      setAllActive((prev) => prev.filter((p) => p.barcode !== barcode));
-      setMsg("✅ Entrega registrada (retirado por cliente).");
-    } catch (e) {
-      console.error(e);
-      setMsg("❌ Error registrando la entrega.");
-    } finally {
+    await updateDoc(ref, {
+      resultadoRetiro: "cliente",
+      fechaSalida: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    // ✅ NO lo eliminamos. Lo marcamos como entregado en memoria.
+    setAllActive((prev) =>
+      prev.map((p) =>
+        p.barcode === barcode ? { ...p, resultadoRetiro: "cliente" } : p
+      )
+    );
+
+    setMsg("✅ Entrega registrada (retirado por cliente).");
+  } catch (e) {
+    console.error(e);
+    setMsg("❌ Error registrando la entrega.");
+  } finally {
     setBusyId(null);
   }
 };
