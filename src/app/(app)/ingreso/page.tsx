@@ -28,7 +28,6 @@ export default function IngresoPage() {
 
     const barcodeClean = barcode.trim();
     const nombreClean = nombre.trim();
-    const empresaClean = empresa.trim();
     const estanteClean = estante.trim();
 
     if (!barcodeClean) {
