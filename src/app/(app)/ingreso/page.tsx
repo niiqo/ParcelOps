@@ -7,10 +7,13 @@ import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 type TipoPaquete = "entrega" | "envio" | "devolucion";
 type Empresa = "SEUR";
 
+const generarBarcode = (): string => {
+  return crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
+};
+
 export default function IngresoPage() {
   const barcodeRef = useRef<HTMLInputElement | null>(null);
 
-  const [barcode, setBarcode] = useState("");
   const [nombre, setNombre] = useState("");
   const [empresa, setEmpresa] = useState<Empresa>("SEUR");
   const [tipo, setTipo] = useState<TipoPaquete>("entrega");
@@ -19,38 +22,32 @@ export default function IngresoPage() {
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
-    barcodeRef.current?.focus();
+    const input = document.getElementById("nombre");
+    input?.focus();
   }, []);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (guardando) return;
 
-    const barcodeClean = barcode.trim();
     const nombreClean = nombre.trim();
     const estanteClean = estante.trim();
-
-    if (!barcodeClean) {
-      setMensaje("El barcode es obligatorio.");
-      barcodeRef.current?.focus();
-      return;
-    }
 
     try {
       setGuardando(true);
       setMensaje("");
 
-      const docRef = doc(db, "packages", barcodeClean);
+      const barcodeGenerado = generarBarcode();
+      const docRef = doc(db, "packages", barcodeGenerado);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        setMensaje("⚠️ Ya existe un paquete con ese barcode.");
-        barcodeRef.current?.focus();
+        setMensaje("⚠️ Se generó un barcode repetido. Reintenta.");
         return;
       }
 
       await setDoc(docRef, {
-        barcode: barcodeClean,
+        barcode: barcodeGenerado,
         nombre: nombreClean,
         nombreLower: (nombre || "").trim().toLowerCase(),
         empresa,
@@ -66,7 +63,6 @@ export default function IngresoPage() {
       setMensaje("✅ Paquete registrado correctamente.");
 
       // limpiar
-      setBarcode("");
       setNombre("");
       setEmpresa("SEUR");
       setTipo("entrega");
@@ -86,25 +82,24 @@ export default function IngresoPage() {
       <h1>Ingreso de Paquete</h1>
 
       <form onSubmit={handleSubmit}>
-        <div>
-          <label>Barcode *</label>
-          <br />
-          <input
-            ref={barcodeRef}
-            value={barcode}
-            onChange={(e) => setBarcode(e.target.value)}
-            autoComplete="off"
-            inputMode="text"
-            required
-          />
-        </div>
 
         <div>
           <label>Nombre destinatario</label>
           <br />
           <input
+            id="nombre"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
+
+        <div>
+          <label>Estante</label>
+          <br />
+          <input
+            value={estante}
+            onChange={(e) => setEstante(e.target.value)}
             autoComplete="off"
           />
         </div>
@@ -131,16 +126,6 @@ export default function IngresoPage() {
             <option value="envio">Envío</option>
             <option value="devolucion">Devolución</option>
           </select>
-        </div>
-
-        <div>
-          <label>Estante</label>
-          <br />
-          <input
-            value={estante}
-            onChange={(e) => setEstante(e.target.value)}
-            autoComplete="off"
-          />
         </div>
 
         <br />
