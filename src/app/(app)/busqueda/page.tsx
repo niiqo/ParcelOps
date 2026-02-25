@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
-import {collection, getDocs, limit, orderBy, query, where, updateDoc, doc, serverTimestamp,} from "firebase/firestore";
+import {collection, getDocs, limit, orderBy, query, updateDoc, doc, serverTimestamp,} from "firebase/firestore";
 import type { Timestamp } from "firebase/firestore";
 
 type PackageDoc = {
@@ -34,6 +34,8 @@ export default function BusquedaPage() {
   const [loading, setLoading] = useState(false);
   const [allActive, setAllActive] = useState<Row[]>([]);
   const [msg, setMsg] = useState("");
+  const [includeDelivered, setIncludeDelivered] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const termNorm = useMemo(() => term.trim().toLowerCase(), [term]);
 
@@ -46,7 +48,6 @@ export default function BusquedaPage() {
         const ref = collection(db, "packages");
         const q = query(
           ref,
-          where("resultadoRetiro", "==", null),
           orderBy("fechaIngreso", "desc"),
           limit(1000) // MVP: ajustable
         );
@@ -76,20 +77,27 @@ export default function BusquedaPage() {
   }, []);
 
   // 2) Filtrado tipo Ctrl+F (contiene, no solo prefijo)
-  const filtered = useMemo(() => {
-    if (!termNorm) return allActive;
+const filtered = useMemo(() => {
+  let base = allActive;
 
-    // Split por espacios para que puedas tipear "nico per" y matchee ambos
-    const tokens = termNorm.split(/\s+/).filter(Boolean);
+  // Si NO queremos incluir entregados
+  if (!includeDelivered) {
+    base = base.filter((r) => r.resultadoRetiro == null);
+  }
 
-    return allActive.filter((r) => {
-      const text = (r.nombreLower || "").trim();
-      return tokens.every((t) => text.includes(t));
-    });
-  }, [allActive, termNorm]);
+  if (!termNorm) return base;
+
+  const tokens = termNorm.split(/\s+/).filter(Boolean);
+
+  return base.filter((r) => {
+    const text = r.nombreLower ?? "";
+    return tokens.every((t) => text.includes(t));
+  });
+}, [allActive, termNorm, includeDelivered]);
 
   const entregarACliente = async (barcode: string) => {
     setMsg("");
+    setBusyId(barcode);
     try {
       const ref = doc(db, "packages", barcode);
       await updateDoc(ref, {
@@ -104,8 +112,10 @@ export default function BusquedaPage() {
     } catch (e) {
       console.error(e);
       setMsg("❌ Error registrando la entrega.");
-    }
-  };
+    } finally {
+    setBusyId(null);
+  }
+};
 
   return (
     <div style={{ padding: 20, maxWidth: 900 }}>
@@ -121,6 +131,17 @@ export default function BusquedaPage() {
           style={{ width: "100%", padding: 10 }}
         />
       </div>
+
+      <div style={{ marginTop: 8 }}>
+  <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+    <input
+      type="checkbox"
+      checked={includeDelivered}
+      onChange={(e) => setIncludeDelivered(e.target.checked)}
+    />
+    Incluir paquetes entregados
+  </label>
+</div>
 
       <p style={{ fontSize: 12, opacity: 0.75 }}>
         Busca por “contiene” (como Ctrl+F). Se filtra solo en paquetes en depósito.
@@ -152,14 +173,24 @@ export default function BusquedaPage() {
                   Barcode: {r.barcode} · Empresa: {r.empresa || "-"} · Tipo: {r.tipo || "-"}
                 </div>
                 <div style={{ marginTop: 4 }}>
-                  <b>Estante:</b> {r.estante || "-"} · <b>Estado:</b> En depósito
+                  <b>Estante:</b> {r.estante || "-"} · <b>Estado:</b>{" "}
+{r.resultadoRetiro == null
+  ? "En depósito"
+  : `Entregado (${r.resultadoRetiro})`}
                 </div>
               </div>
 
               <div style={{ display: "flex", alignItems: "center" }}>
-                <button onClick={() => entregarACliente(r.barcode)}>
-                  Entregar (cliente)
-                </button>
+                <button
+  onClick={() => entregarACliente(r.barcode)}
+  disabled={busyId === r.barcode || r.resultadoRetiro != null}
+>
+  {r.resultadoRetiro != null
+    ? "Ya entregado"
+    : busyId === r.barcode
+    ? "Entregando..."
+    : "Entregar (cliente)"}
+</button>
               </div>
             </div>
           </div>
