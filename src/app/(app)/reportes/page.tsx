@@ -9,16 +9,7 @@ import {
   where,
   Timestamp,
 } from "firebase/firestore";
-
-type Tipo = "entrega" | "envio" | "devolucion";
-type Resultado = "cliente" | "transportista" | null;
-
-type PackageDoc = {
-  tipo?: Tipo;
-  resultadoRetiro?: Resultado;
-  fechaIngreso?: Timestamp;
-  fechaSalida?: Timestamp | null;
-};
+import type { PackageDoc } from "@/types/package";
 
 function startOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);

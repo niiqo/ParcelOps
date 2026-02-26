@@ -3,9 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-
-type TipoPaquete = "entrega" | "envio" | "devolucion";
-type Empresa = "SEUR";
+import type { Empresa, Tipo } from "@/types/package";
 
 const generarBarcode = (): string => {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
@@ -16,7 +14,7 @@ export default function IngresoPage() {
 
   const [nombre, setNombre] = useState("");
   const [empresa, setEmpresa] = useState<Empresa>("SEUR");
-  const [tipo, setTipo] = useState<TipoPaquete>("entrega");
+  const [tipo, setTipo] = useState<Tipo>("entrega");
   const [estante, setEstante] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -119,7 +117,7 @@ export default function IngresoPage() {
           <br />
           <select
             value={tipo}
-            onChange={(e) => setTipo(e.target.value as TipoPaquete)}
+            onChange={(e) => setTipo(e.target.value as Tipo)}
           >
             <option value="entrega">Entrega</option>
             <option value="envio">Envío</option>
