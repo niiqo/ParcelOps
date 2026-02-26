@@ -52,8 +52,7 @@ export default function IngresoPage() {
         tipo,
         estante: estanteClean,
         fechaIngreso: serverTimestamp(),
-        resultadoRetiro: null,
-        fechaSalida: null,
+        estado: "EN_DEPOSITO",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -121,7 +120,6 @@ export default function IngresoPage() {
           >
             <option value="entrega">Entrega</option>
             <option value="envio">Envío</option>
-            <option value="devolucion">Devolución</option>
           </select>
         </div>
 

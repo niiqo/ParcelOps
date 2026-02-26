@@ -1,7 +1,11 @@
 import type { Timestamp } from "firebase/firestore";
 
-export type Tipo = "entrega" | "envio" | "devolucion";
-export type ResultadoRetiro = "cliente" | "transportista" | null;
+export type Tipo = "entrega" | "envio";
+export type EstadoPackage =
+  | "EN_DEPOSITO"
+  | "PENDIENTE_DEVOLUCION"
+  | "ENTREGADO"
+  | "DEVUELTO";
 export type Empresa = "SEUR";
 
 export type PackageDoc = {
@@ -10,9 +14,11 @@ export type PackageDoc = {
   empresa?: Empresa;
   tipo?: Tipo;
   estante?: string;
-  resultadoRetiro?: ResultadoRetiro;
+  estado: EstadoPackage;
   fechaIngreso?: Timestamp;
-  fechaSalida?: Timestamp | null;
+  marcadoDevolucionAt?: Timestamp;
+  entregadoAt?: Timestamp;
+  devueltoAt?: Timestamp;
 };
 
 export type PackageRow = {
@@ -22,5 +28,5 @@ export type PackageRow = {
   empresa?: Empresa;
   tipo?: Tipo;
   estante?: string;
-  resultadoRetiro?: ResultadoRetiro;
+  estado: EstadoPackage;
 };
