@@ -11,7 +11,7 @@ const NAV: NavItem[] = [
   { href: "/busqueda", label: "Búsqueda" },
   { href: "/reportes", label: "Reportes" },
   { href: "/retiro", label: "Retiro" },
-  // agregá más secciones cuando existan
+  { href: "/debug-packages", label: "Debug paquetes" },
 ];
 
 export default function SideNav() {
