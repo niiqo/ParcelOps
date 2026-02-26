@@ -12,36 +12,12 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
-import type { Timestamp } from "firebase/firestore";
-
-type PackageDoc = {
-  nombre?: string;
-  nombreLower?: string;
-  empresa?: string;
-  tipo?: "entrega" | "envio" | "devolucion";
-  estante?: string;
-  resultadoRetiro?: "cliente" | "transportista" | null;
-  fechaIngreso?: Timestamp;
-  fechaSalida?: Timestamp | null;
-};
-
-type Tipo = "entrega" | "envio" | "devolucion";
-type Resultado = "cliente" | "transportista" | null;
-
-type Row = {
-  barcode: string;
-  nombre?: string;
-  nombreLower: string;
-  empresa?: string;
-  tipo?: Tipo;
-  estante?: string;
-  resultadoRetiro?: Resultado;
-};
+import type { PackageDoc, PackageRow } from "@/types/package";
 
 export default function BusquedaPage() {
   const [term, setTerm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [allActive, setAllActive] = useState<Row[]>([]);
+  const [allActive, setAllActive] = useState<PackageRow[]>([]);
   const [msg, setMsg] = useState("");
   const [includeDelivered, setIncludeDelivered] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -62,7 +38,7 @@ export default function BusquedaPage() {
         );
 
         const snap = await getDocs(q);
-        const list: Row[] = snap.docs.map((d) => {
+        const list: PackageRow[] = snap.docs.map((d) => {
           const data = d.data() as PackageDoc;
 
           const nombre = data.nombre?.trim() || "";
