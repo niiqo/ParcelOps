@@ -15,12 +15,17 @@ import {
 } from "firebase/firestore";
 import type { PackageDoc, Tipo } from "@/types/package";
 
+function isTipo(v: unknown): v is Tipo {
+  return v === "entrega" || v === "envio";
+}
+
 type Row = {
   id: string;
   nombre: string;
   estante: string;
   tipo: Tipo | "-";
   empresa: string;
+  estado: PackageDoc["estado"];
 };
 
 export default function RetiroPage() {
@@ -39,26 +44,37 @@ export default function RetiroPage() {
     try {
       const q = query(
         collection(db, "packages"),
-        where("estado", "==", "PENDIENTE_DEVOLUCION"),
-        orderBy("marcadoDevolucionAt", "desc"),
+        where("estado", "in", ["EN_DEPOSITO", "PENDIENTE_DEVOLUCION"]),
+        orderBy("updatedAt", "desc"),
         limit(200),
       );
 
       const snap = await getDocs(q);
 
-      const list: Row[] = snap.docs.map((d) => {
-        const data = d.data() as PackageDoc;
-        return {
-          id: d.id,
-          nombre: data.nombre ?? "",
-          estante: data.estante ?? "",
-          tipo: data.tipo ?? "-",
-          empresa: data.empresa ?? "",
-        };
-      });
+      const list: Row[] = snap.docs
+        .map((d) => {
+          const data = d.data() as PackageDoc;
+
+          const tipo: Tipo | "-" = isTipo(data.tipo) ? data.tipo : "-";
+
+          return {
+            id: d.id,
+            nombre: data.nombre ?? "",
+            estante: data.estante ?? "",
+            tipo,
+            empresa: data.empresa ?? "",
+            estado: data.estado,
+          };
+        })
+        .filter(
+          (r) =>
+            (r.estado === "EN_DEPOSITO" && r.tipo === "envio") ||
+            r.estado === "PENDIENTE_DEVOLUCION",
+        );
 
       setRows(list);
-      if (!list.length) setMensaje("No hay paquetes pendientes de devolución para retiro.");
+      if (!list.length)
+        setMensaje("No hay paquetes pendientes de devolución para retiro.");
     } catch (e) {
       console.error(e);
       setMensaje("❌ Error cargando pendientes.");
@@ -84,16 +100,28 @@ export default function RetiroPage() {
 
       rows.forEach((r) => {
         const ref = doc(db, "packages", r.id);
-        batch.update(ref, {
-          estado: "DEVUELTO",
-          devueltoAt: now,
-          updatedAt: now,
-        });
+
+        if (r.estado === "PENDIENTE_DEVOLUCION") {
+          batch.update(ref, {
+            estado: "DEVUELTO",
+            devueltoAt: now,
+            updatedAt: now,
+          });
+        } else {
+          // EN_DEPOSITO + tipo envio
+          batch.update(ref, {
+            estado: "ENTREGADO",
+            fechaSalida: now,
+            updatedAt: now,
+          });
+        }
       });
 
       await batch.commit();
 
-      setMensaje(`✅ Retiro registrado: ${rows.length} paquetes retirados por transportista.`);
+      setMensaje(
+        `✅ Retiro registrado: ${rows.length} paquetes retirados por transportista.`,
+      );
       await cargarPendientes();
     } catch (e) {
       console.error(e);
@@ -111,7 +139,10 @@ export default function RetiroPage() {
         <button onClick={cargarPendientes} disabled={loading}>
           {loading ? "Cargando..." : "Actualizar"}
         </button>{" "}
-        <button onClick={marcarLoteRetirado} disabled={loading || rows.length === 0}>
+        <button
+          onClick={marcarLoteRetirado}
+          disabled={loading || rows.length === 0}
+        >
           Marcar lote como retirado
         </button>
       </div>
@@ -124,21 +155,51 @@ export default function RetiroPage() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Barcode</th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Nombre</th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Estante</th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Tipo</th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>Empresa</th>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
+                Barcode
+              </th>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
+                Nombre
+              </th>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
+                Estante
+              </th>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
+                Tipo
+              </th>
+              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
+                Empresa
+              </th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.id}>
-                <td style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}>{r.id}</td>
-                <td style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}>{r.nombre || "-"}</td>
-                <td style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}>{r.estante || "-"}</td>
-                <td style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}>{r.tipo}</td>
-                <td style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}>{r.empresa || "-"}</td>
+                <td
+                  style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}
+                >
+                  {r.id}
+                </td>
+                <td
+                  style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}
+                >
+                  {r.nombre || "-"}
+                </td>
+                <td
+                  style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}
+                >
+                  {r.estante || "-"}
+                </td>
+                <td
+                  style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}
+                >
+                  {r.tipo}
+                </td>
+                <td
+                  style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}
+                >
+                  {r.empresa || "-"}
+                </td>
               </tr>
             ))}
           </tbody>
