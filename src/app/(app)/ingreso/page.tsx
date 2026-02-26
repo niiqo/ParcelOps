@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import type { Empresa, Tipo } from "@/types/package";
+import DebugPackagesView from "@/components/DebugPackagesView";
 
 const generarBarcode = (): string => {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
@@ -59,7 +60,6 @@ export default function IngresoPage() {
 
       setMensaje("✅ Paquete registrado correctamente.");
 
-      // limpiar
       setNombre("");
       setEmpresa("SEUR");
       setTipo("entrega");
@@ -75,61 +75,65 @@ export default function IngresoPage() {
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Ingreso de Paquete</h1>
+    <div style={{ display: "grid", gap: 20 }}>
+      <div style={{ padding: 20 }}>
+        <h1>Ingreso de Paquete</h1>
 
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>Nombre destinatario</label>
+        <form onSubmit={handleSubmit}>
+          <div>
+            <label>Nombre destinatario</label>
+            <br />
+            <input
+              id="nombre"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+
+          <div>
+            <label>Estante</label>
+            <br />
+            <input
+              value={estante}
+              onChange={(e) => setEstante(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+
+          <div>
+            <label>Empresa</label>
+            <br />
+            <select
+              value={empresa}
+              onChange={(e) => setEmpresa(e.target.value as Empresa)}
+            >
+              <option value="SEUR">SEUR</option>
+            </select>
+          </div>
+
+          <div>
+            <label>Tipo</label>
+            <br />
+            <select
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value as Tipo)}
+            >
+              <option value="entrega">Entrega</option>
+              <option value="envio">Envío</option>
+            </select>
+          </div>
+
           <br />
-          <input
-            id="nombre"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            autoComplete="off"
-          />
-        </div>
+          <button type="submit" disabled={guardando}>
+            {guardando ? "Guardando..." : "Guardar"}
+          </button>
+        </form>
 
-        <div>
-          <label>Estante</label>
-          <br />
-          <input
-            value={estante}
-            onChange={(e) => setEstante(e.target.value)}
-            autoComplete="off"
-          />
-        </div>
+        {mensaje ? <p>{mensaje}</p> : null}
+      </div>
 
-        <div>
-          <label>Empresa</label>
-          <br />
-          <select
-            value={empresa}
-            onChange={(e) => setEmpresa(e.target.value as Empresa)}
-          >
-            <option value="SEUR">SEUR</option>
-          </select>
-        </div>
-
-        <div>
-          <label>Tipo</label>
-          <br />
-          <select
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value as Tipo)}
-          >
-            <option value="entrega">Entrega</option>
-            <option value="envio">Envío</option>
-          </select>
-        </div>
-
-        <br />
-        <button type="submit" disabled={guardando}>
-          {guardando ? "Guardando..." : "Guardar"}
-        </button>
-      </form>
-
-      {mensaje ? <p>{mensaje}</p> : null}
+      <DebugPackagesView title="Debug paquetes" />
     </div>
   );
 }
