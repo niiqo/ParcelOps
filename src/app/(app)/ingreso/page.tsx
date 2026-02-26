@@ -82,7 +82,6 @@ export default function IngresoPage() {
       <h1>Ingreso de Paquete</h1>
 
       <form onSubmit={handleSubmit}>
-
         <div>
           <label>Nombre destinatario</label>
           <br />
@@ -108,11 +107,11 @@ export default function IngresoPage() {
           <label>Empresa</label>
           <br />
           <select
-  value={empresa}
-  onChange={(e) => setEmpresa(e.target.value as Empresa)}
->
-  <option value="SEUR">SEUR</option>
-</select>
+            value={empresa}
+            onChange={(e) => setEmpresa(e.target.value as Empresa)}
+          >
+            <option value="SEUR">SEUR</option>
+          </select>
         </div>
 
         <div>
