@@ -13,12 +13,13 @@ import {
   writeBatch,
   serverTimestamp,
 } from "firebase/firestore";
+import type { PackageDoc, Tipo } from "@/types/package";
 
 type Row = {
-  id: string; // barcode (doc.id)
+  id: string;
   nombre: string;
   estante: string;
-  tipo: "envio" | "devolucion";
+  tipo: Tipo | "-";
   empresa: string;
 };
 
@@ -38,27 +39,26 @@ export default function RetiroPage() {
     try {
       const q = query(
         collection(db, "packages"),
-        where("tipo", "in", ["envio", "devolucion"]),
-        where("fechaSalida", "==", null),
-        orderBy("createdAt", "desc"),
-        limit(200)
+        where("estado", "==", "PENDIENTE_DEVOLUCION"),
+        orderBy("marcadoDevolucionAt", "desc"),
+        limit(200),
       );
 
       const snap = await getDocs(q);
 
       const list: Row[] = snap.docs.map((d) => {
-        const data = d.data() as any;
+        const data = d.data() as PackageDoc;
         return {
           id: d.id,
-          nombre: (data.nombre ?? "").toString(),
-          estante: (data.estante ?? "").toString(),
-          tipo: data.tipo,
-          empresa: (data.empresa ?? "").toString(),
+          nombre: data.nombre ?? "",
+          estante: data.estante ?? "",
+          tipo: data.tipo ?? "-",
+          empresa: data.empresa ?? "",
         };
       });
 
       setRows(list);
-      if (!list.length) setMensaje("No hay envíos/devoluciones pendientes para retiro.");
+      if (!list.length) setMensaje("No hay paquetes pendientes de devolución para retiro.");
     } catch (e) {
       console.error(e);
       setMensaje("❌ Error cargando pendientes.");
@@ -85,15 +85,15 @@ export default function RetiroPage() {
       rows.forEach((r) => {
         const ref = doc(db, "packages", r.id);
         batch.update(ref, {
-          resultadoRetiro: "transportista",
-          fechaSalida: now,
+          estado: "DEVUELTO",
+          devueltoAt: now,
           updatedAt: now,
         });
       });
 
       await batch.commit();
 
-      setMensaje(`✅ Retiro registrado: ${rows.length} paquetes entregados al transportista.`);
+      setMensaje(`✅ Retiro registrado: ${rows.length} paquetes retirados por transportista.`);
       await cargarPendientes();
     } catch (e) {
       console.error(e);

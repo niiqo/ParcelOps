@@ -12,57 +12,38 @@ import {
   doc,
   serverTimestamp,
 } from "firebase/firestore";
-import type { Timestamp } from "firebase/firestore";
+import type { EstadoPackage, PackageDoc, PackageRow } from "@/types/package";
 
-type PackageDoc = {
-  nombre?: string;
-  nombreLower?: string;
-  empresa?: string;
-  tipo?: "entrega" | "envio" | "devolucion";
-  estante?: string;
-  resultadoRetiro?: "cliente" | "transportista" | null;
-  fechaIngreso?: Timestamp;
-  fechaSalida?: Timestamp | null;
+const ESTADO_LABEL: Record<EstadoPackage, string> = {
+  EN_DEPOSITO: "En depósito",
+  PENDIENTE_DEVOLUCION: "Pendiente devolución",
+  ENTREGADO: "Entregado",
+  DEVUELTO: "Devuelto",
 };
 
-type Tipo = "entrega" | "envio" | "devolucion";
-type Resultado = "cliente" | "transportista" | null;
-
-type Row = {
-  barcode: string;
-  nombre?: string;
-  nombreLower: string;
-  empresa?: string;
-  tipo?: Tipo;
-  estante?: string;
-  resultadoRetiro?: Resultado;
-};
+const isActive = (estado: EstadoPackage) =>
+  estado === "EN_DEPOSITO" || estado === "PENDIENTE_DEVOLUCION";
 
 export default function BusquedaPage() {
   const [term, setTerm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [allActive, setAllActive] = useState<Row[]>([]);
+  const [allActive, setAllActive] = useState<PackageRow[]>([]);
   const [msg, setMsg] = useState("");
   const [includeDelivered, setIncludeDelivered] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const termNorm = useMemo(() => term.trim().toLowerCase(), [term]);
 
-  // 1) Cargar paquetes activos (en depósito) una vez
   useEffect(() => {
     (async () => {
       setLoading(true);
       setMsg("");
       try {
         const ref = collection(db, "packages");
-        const q = query(
-          ref,
-          orderBy("fechaIngreso", "desc"),
-          limit(1000), // MVP: ajustable
-        );
+        const q = query(ref, orderBy("fechaIngreso", "desc"), limit(1000));
 
         const snap = await getDocs(q);
-        const list: Row[] = snap.docs.map((d) => {
+        const list: PackageRow[] = snap.docs.map((d) => {
           const data = d.data() as PackageDoc;
 
           const nombre = data.nombre?.trim() || "";
@@ -76,7 +57,7 @@ export default function BusquedaPage() {
             empresa: data.empresa,
             tipo: data.tipo,
             estante: data.estante,
-            resultadoRetiro: data.resultadoRetiro ?? null,
+            estado: data.estado ?? "EN_DEPOSITO",
           };
         });
 
@@ -90,16 +71,13 @@ export default function BusquedaPage() {
     })();
   }, []);
 
-  // 2) Filtrado tipo Ctrl+F (contiene, no solo prefijo)
   const filtered = useMemo(() => {
     let base = allActive;
 
-    // ❌ No mostrar envios nunca
     base = base.filter((r) => r.tipo !== "envio");
 
-    // Si NO queremos incluir entregados
     if (!includeDelivered) {
-      base = base.filter((r) => r.resultadoRetiro == null);
+      base = base.filter((r) => isActive(r.estado));
     }
 
     if (!termNorm) return base;
@@ -116,19 +94,18 @@ export default function BusquedaPage() {
       const ref = doc(db, "packages", barcode);
 
       await updateDoc(ref, {
-        resultadoRetiro: "cliente",
-        fechaSalida: serverTimestamp(),
+        estado: "ENTREGADO",
+        entregadoAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
-      // ✅ NO lo eliminamos. Lo marcamos como entregado en memoria.
       setAllActive((prev) =>
         prev.map((p) =>
-          p.barcode === barcode ? { ...p, resultadoRetiro: "cliente" } : p,
+          p.barcode === barcode ? { ...p, estado: "ENTREGADO" } : p,
         ),
       );
 
-      setMsg("✅ Entrega registrada (retirado por cliente).");
+      setMsg("✅ Entrega registrada.");
     } catch (e) {
       console.error(e);
       setMsg("❌ Error registrando la entrega.");
@@ -145,19 +122,18 @@ export default function BusquedaPage() {
       const ref = doc(db, "packages", barcode);
 
       await updateDoc(ref, {
-        tipo: "devolucion",
-        marcadoDevolucionAt: serverTimestamp(), // opcional pero muy útil
+        estado: "PENDIENTE_DEVOLUCION",
+        marcadoDevolucionAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
 
-      // ✅ NO lo sacamos del array. Solo actualizamos el tipo local.
       setAllActive((prev) =>
         prev.map((p) =>
-          p.barcode === barcode ? { ...p, tipo: "devolucion" } : p,
+          p.barcode === barcode ? { ...p, estado: "PENDIENTE_DEVOLUCION" } : p,
         ),
       );
 
-      setMsg("✅ Paquete marcado como DEVOLUCIÓN.");
+      setMsg("✅ Paquete marcado como pendiente de devolución.");
     } catch (e) {
       console.error(e);
       setMsg("❌ Error marcando el paquete como devolución.");
@@ -188,14 +164,9 @@ export default function BusquedaPage() {
             checked={includeDelivered}
             onChange={(e) => setIncludeDelivered(e.target.checked)}
           />
-          Incluir paquetes entregados
+          Incluir paquetes entregados/devueltos
         </label>
       </div>
-
-      <p style={{ fontSize: 12, opacity: 0.75 }}>
-        Busca por “contiene” (como Ctrl+F). Se filtra solo en paquetes en
-        depósito.
-      </p>
 
       {loading ? <p>Cargando paquetes activos...</p> : null}
       {msg ? <p>{msg}</p> : null}
@@ -224,27 +195,21 @@ export default function BusquedaPage() {
               }}
             >
               <div>
-                <div style={{ fontWeight: 700 }}>
-                  {r.nombre || "(Sin nombre)"}
-                </div>
+                <div style={{ fontWeight: 700 }}>{r.nombre || "(Sin nombre)"}</div>
                 <div style={{ fontSize: 13, opacity: 0.8 }}>
-                  Barcode: {r.barcode} · Empresa: {r.empresa || "-"} · Tipo:{" "}
-                  {r.tipo || "-"}
+                  Barcode: {r.barcode} · Empresa: {r.empresa || "-"} · Tipo: {r.tipo || "-"}
                 </div>
                 <div style={{ marginTop: 4 }}>
-                  <b>Estante:</b> {r.estante || "-"} · <b>Estado:</b>{" "}
-                  {r.resultadoRetiro == null
-                    ? "En depósito"
-                    : `Entregado (${r.resultadoRetiro})`}
+                  <b>Estante:</b> {r.estante || "-"} · <b>Estado:</b> {ESTADO_LABEL[r.estado]}
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <button
                   onClick={() => entregarACliente(r.barcode)}
-                  disabled={busyId === r.barcode || r.resultadoRetiro != null}
+                  disabled={busyId === r.barcode || !isActive(r.estado)}
                 >
-                  {r.resultadoRetiro != null
-                    ? "Ya entregado"
+                  {!isActive(r.estado)
+                    ? "No disponible"
                     : busyId === r.barcode
                       ? "Entregando..."
                       : "Entregar (cliente)"}
@@ -253,12 +218,12 @@ export default function BusquedaPage() {
                   onClick={() => marcarDevolucion(r.barcode)}
                   disabled={
                     busyId === r.barcode ||
-                    r.resultadoRetiro != null || // si ya entregado, no tiene sentido
-                    r.tipo === "devolucion" // ya está marcado
+                    r.estado === "PENDIENTE_DEVOLUCION" ||
+                    !isActive(r.estado)
                   }
                 >
-                  {r.tipo === "devolucion"
-                    ? "Ya es devolución"
+                  {r.estado === "PENDIENTE_DEVOLUCION"
+                    ? "Ya pendiente"
                     : "Marcar devolución"}
                 </button>
               </div>

@@ -9,16 +9,7 @@ import {
   where,
   Timestamp,
 } from "firebase/firestore";
-
-type Tipo = "entrega" | "envio" | "devolucion";
-type Resultado = "cliente" | "transportista" | null;
-
-type PackageDoc = {
-  tipo?: Tipo;
-  resultadoRetiro?: Resultado;
-  fechaIngreso?: Timestamp;
-  fechaSalida?: Timestamp | null;
-};
+import type { PackageDoc } from "@/types/package";
 
 function startOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
@@ -32,12 +23,12 @@ export default function ReportesPage() {
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, "0");
-    return `${yyyy}-${mm}`; // input type="month"
+    return `${yyyy}-${mm}`;
   });
 
   const [loading, setLoading] = useState(false);
   const [ingresos, setIngresos] = useState<Record<string, number>>({});
-  const [retiros, setRetiros] = useState<Record<string, number>>({});
+  const [egresos, setEgresos] = useState<Record<string, number>>({});
   const [mensaje, setMensaje] = useState("");
 
   const { from, to } = useMemo(() => {
@@ -53,54 +44,51 @@ export default function ReportesPage() {
     try {
       const packagesRef = collection(db, "packages");
 
-      // Ingresos del mes (por fechaIngreso)
       const qIngresos = query(
         packagesRef,
         where("fechaIngreso", ">=", Timestamp.fromDate(from)),
-        where("fechaIngreso", "<", Timestamp.fromDate(to))
+        where("fechaIngreso", "<", Timestamp.fromDate(to)),
       );
 
-      // Retiros del mes (por fechaSalida)
-      const qRetiros = query(
+      const qEntregados = query(
         packagesRef,
-        where("fechaSalida", ">=", Timestamp.fromDate(from)),
-        where("fechaSalida", "<", Timestamp.fromDate(to))
+        where("entregadoAt", ">=", Timestamp.fromDate(from)),
+        where("entregadoAt", "<", Timestamp.fromDate(to)),
       );
 
-      const [snapIngresos, snapRetiros] = await Promise.all([
+      const qDevueltos = query(
+        packagesRef,
+        where("devueltoAt", ">=", Timestamp.fromDate(from)),
+        where("devueltoAt", "<", Timestamp.fromDate(to)),
+      );
+
+      const [snapIngresos, snapEntregados, snapDevueltos] = await Promise.all([
         getDocs(qIngresos),
-        getDocs(qRetiros),
+        getDocs(qEntregados),
+        getDocs(qDevueltos),
       ]);
 
       const ing: Record<string, number> = {
         entrega: 0,
         envio: 0,
-        devolucion: 0,
         total: 0,
       };
 
-      snapIngresos.forEach((doc) => {
-        const data = doc.data() as PackageDoc;
+      snapIngresos.forEach((docSnap) => {
+        const data = docSnap.data() as PackageDoc;
         const t = data.tipo;
         if (t) ing[t] = (ing[t] ?? 0) + 1;
         ing.total += 1;
       });
 
-      const ret: Record<string, number> = {
-        cliente: 0,
-        transportista: 0,
-        total: 0,
+      const egr: Record<string, number> = {
+        ENTREGADO: snapEntregados.size,
+        DEVUELTO: snapDevueltos.size,
+        total: snapEntregados.size + snapDevueltos.size,
       };
 
-      snapRetiros.forEach((doc) => {
-        const data = doc.data() as PackageDoc;
-        const r = data.resultadoRetiro;
-        if (r) ret[r] = (ret[r] ?? 0) + 1;
-        ret.total += 1;
-      });
-
       setIngresos(ing);
-      setRetiros(ret);
+      setEgresos(egr);
     } catch (e) {
       console.error(e);
       setMensaje("❌ Error cargando reportes.");
@@ -110,7 +98,6 @@ export default function ReportesPage() {
   };
 
   useEffect(() => {
-    // Cargar automáticamente al entrar o al cambiar el mes
     cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthValue]);
@@ -143,26 +130,25 @@ export default function ReportesPage() {
       <ul>
         <li>Entrega: {ingresos.entrega ?? 0}</li>
         <li>Envío: {ingresos.envio ?? 0}</li>
-        <li>Devolución: {ingresos.devolucion ?? 0}</li>
         <li>
           <b>Total ingresos:</b> {ingresos.total ?? 0}
         </li>
       </ul>
 
-      <h2>Retiros (por Resultado)</h2>
+      <h2>Egresos (por Estado)</h2>
       <ul>
-        <li>Retirado por cliente: {retiros.cliente ?? 0}</li>
-        <li>Retirado por transportista: {retiros.transportista ?? 0}</li>
+        <li>Entregado: {egresos.ENTREGADO ?? 0}</li>
+        <li>Devuelto: {egresos.DEVUELTO ?? 0}</li>
         <li>
-          <b>Total retiros:</b> {retiros.total ?? 0}
+          <b>Total egresos:</b> {egresos.total ?? 0}
         </li>
       </ul>
 
       <hr />
 
       <p style={{ fontSize: 12, opacity: 0.75 }}>
-        Nota: ingresos se calculan por <code>fechaIngreso</code> y retiros por{" "}
-        <code>fechaSalida</code>.
+        Nota: ingresos se calculan por <code>fechaIngreso</code> y egresos por
+        <code> entregadoAt/devueltoAt</code>.
       </p>
     </div>
   );
