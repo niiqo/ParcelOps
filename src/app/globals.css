@@ -1,33 +1,25 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
 }
 
 * {
   box-sizing: border-box;
-  padding: 0;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
   margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Inter, "Segoe UI", sans-serif;
+  line-height: 1.5;
 }
 
 a {
@@ -35,8 +27,220 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+.app-shell {
+  min-height: 100dvh;
+}
+
+.app-shell__layout {
+  display: flex;
+  min-height: 100dvh;
+}
+
+.app-shell__sidebar {
+  width: 280px;
+  border-right: 1px solid var(--border);
+  background: #fff;
+  padding: 16px;
+}
+
+.app-shell__brand p {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.app-shell__brand span {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.app-shell__nav-list {
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.app-shell__nav-link {
+  display: block;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #334155;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.app-shell__nav-link:hover {
+  background: #f1f5f9;
+}
+
+.app-shell__nav-link.is-active {
+  background: #0f172a;
+  color: #fff;
+}
+
+.app-shell__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-shell__header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 64px;
+}
+
+.app-shell__header h1 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.app-shell__header #app-shell-actions {
+  margin-left: auto;
+}
+
+.app-shell__main {
+  padding: 24px 20px;
+}
+
+.app-shell__menu-btn {
+  display: none;
+}
+
+.dashboard-home {
+  margin: 0 auto;
+  max-width: 860px;
+}
+
+.dashboard-home__cta {
+  display: inline-flex;
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.base-page-header {
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.base-page-header h2 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.base-page-header p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.base-empty-state {
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  background: #fff;
+  padding: 32px;
+  text-align: center;
+}
+
+.base-empty-state h3 {
+  margin: 0;
+}
+
+.base-empty-state p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.base-empty-state__cta {
+  margin-top: 16px;
+}
+
+.base-loading-state {
+  display: grid;
+  gap: 10px;
+}
+
+.base-loading-state__line {
+  height: 14px;
+  border-radius: 8px;
+  background: #e2e8f0;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.base-error-state {
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  background: #fff1f2;
+  color: #be123c;
+  padding: 16px;
+}
+
+.base-error-state p {
+  margin: 0;
+}
+
+.base-error-state button {
+  margin-top: 12px;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #e11d48;
+  color: #fff;
+  cursor: pointer;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-shell__sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+
+  .app-shell__sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .app-shell__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    border: 0;
+    background: rgba(15, 23, 42, 0.45);
+  }
+
+  .app-shell__menu-btn {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    padding: 7px 10px;
+    cursor: pointer;
   }
 }
