@@ -27,6 +27,7 @@ type PackageDebugRow = {
   estante: string;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
+  marcadoDevolucionAt: Timestamp | Date | null;
   caducado: boolean | null;
   raw: DocumentData;
 };
@@ -59,10 +60,20 @@ function getTimestamp(value: unknown): Timestamp | null {
   return null;
 }
 
+function toDateValue(value: Timestamp | Date | null | undefined): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "object" && "toDate" in value) {
+    return value.toDate();
+  }
+  return null;
+}
+
 function mapDoc(snap: QueryDocumentSnapshot<DocumentData>): PackageDebugRow {
   const data = snap.data() as PackageDoc & {
     createdAt?: Timestamp;
     updatedAt?: Timestamp;
+    marcadoDevolucionAt?: Timestamp | Date | null;
     barcode?: string;
     caducado?: boolean;
   };
@@ -77,6 +88,7 @@ function mapDoc(snap: QueryDocumentSnapshot<DocumentData>): PackageDebugRow {
     estante: data.estante ?? "",
     createdAt: getTimestamp(data.createdAt),
     updatedAt: getTimestamp(data.updatedAt),
+    marcadoDevolucionAt: data.marcadoDevolucionAt ?? null,
     caducado: typeof data.caducado === "boolean" ? data.caducado : null,
     raw: data,
   };
@@ -85,6 +97,12 @@ function mapDoc(snap: QueryDocumentSnapshot<DocumentData>): PackageDebugRow {
 function tsToText(ts: Timestamp | null): string {
   if (!ts) return "-";
   return ts.toDate().toLocaleString();
+}
+
+function dateValueToText(value: Timestamp | Date | null | undefined): string {
+  const dateValue = toDateValue(value);
+  if (!dateValue) return "-";
+  return dateValue.toLocaleString();
 }
 
 export default function DebugPackagesView({ title = "Debug paquetes" }: { title?: string }) {
@@ -272,7 +290,7 @@ export default function DebugPackagesView({ title = "Debug paquetes" }: { title?
                   Empresa
                 </th>
                 <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-                  Caducado
+                  Marcado devolución
                 </th>
                 <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
                   Created
@@ -305,7 +323,7 @@ export default function DebugPackagesView({ title = "Debug paquetes" }: { title?
                     {row.empresa}
                   </td>
                   <td style={{ borderBottom: "1px solid #eee", padding: "6px 0" }}>
-                    {row.caducado === null ? "-" : row.caducado ? "true" : "false"}
+                    {dateValueToText(row.marcadoDevolucionAt)}
                   </td>
                   <td style={{ borderBottom: "1px solid #eee", padding: "6px 0" }}>
                     {tsToText(row.createdAt)}
