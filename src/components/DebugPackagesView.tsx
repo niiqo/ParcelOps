@@ -4,13 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
 import {
   collection,
-  doc,
   limit,
   onSnapshot,
   orderBy,
   query,
-  serverTimestamp,
-  updateDoc,
   type DocumentData,
   type QueryDocumentSnapshot,
   type Timestamp,
@@ -105,6 +102,18 @@ function dateValueToText(value: Timestamp | Date | null | undefined): string {
   return dateValue.toLocaleString();
 }
 
+function detailValueToText(value: unknown): string {
+  if (value === null || value === undefined) return "-";
+
+  const dateValue = toDateValue(value as Timestamp | Date | null | undefined);
+  if (dateValue) return dateValue.toLocaleString();
+
+  if (typeof value === "string") return value.trim() ? value : "-";
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+
+  return "-";
+}
+
 export default function DebugPackagesView({ title = "Debug paquetes" }: { title?: string }) {
   const [rows, setRows] = useState<PackageDebugRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,44 +179,6 @@ export default function DebugPackagesView({ title = "Debug paquetes" }: { title?
     () => rows.find((row) => row.id === selectedId) ?? null,
     [rows, selectedId],
   );
-
-  const updateEstado = async (
-    id: string,
-    estado: Extract<
-      EstadoPackage,
-      "ENTREGADO" | "EN_DEPOSITO" | "PENDIENTE_DEVOLUCION"
-    >,
-  ) => {
-    setMessage("");
-    try {
-      await updateDoc(doc(db, "packages", id), {
-        estado,
-        updatedAt: serverTimestamp(),
-      });
-      setMessage(`✅ Estado actualizado a ${estado}.`);
-    } catch (error) {
-      console.error(error);
-      setMessage("❌ No se pudo actualizar estado.");
-    }
-  };
-
-  const toggleCaducado = async (row: PackageDebugRow) => {
-    if (!("caducado" in row.raw)) return;
-
-    const current = typeof row.raw.caducado === "boolean" ? row.raw.caducado : false;
-    setMessage("");
-
-    try {
-      await updateDoc(doc(db, "packages", row.id), {
-        caducado: !current,
-        updatedAt: serverTimestamp(),
-      });
-      setMessage(`✅ caducado: ${!current}`);
-    } catch (error) {
-      console.error(error);
-      setMessage("❌ No se pudo actualizar caducado.");
-    }
-  };
 
   return (
     <div style={{ padding: 20 }}>
@@ -338,37 +309,77 @@ export default function DebugPackagesView({ title = "Debug paquetes" }: { title?
           <h3 style={{ marginTop: 0 }}>Detalle</h3>
           {selected ? (
             <>
-              <div
-                style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}
-              >
-                <button onClick={() => updateEstado(selected.id, "ENTREGADO")}>
-                  ENTREGADO
-                </button>
-                <button onClick={() => updateEstado(selected.id, "EN_DEPOSITO")}>
-                  EN_DEPOSITO
-                </button>
-                <button
-                  onClick={() => updateEstado(selected.id, "PENDIENTE_DEVOLUCION")}
-                >
-                  PENDIENTE_DEVOLUCION
-                </button>
-                {"caducado" in selected.raw ? (
-                  <button onClick={() => toggleCaducado(selected)}>
-                    Toggle caducado (
-                    {selected.caducado === null ? "-" : String(selected.caducado)})
-                  </button>
-                ) : null}
-              </div>
-
-              <pre style={{ fontSize: 12, whiteSpace: "pre-wrap", margin: 0 }}>
-                {JSON.stringify(selected.raw, null, 2)}
-              </pre>
-              <p style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
-                updatedAt: {tsToText(selected.updatedAt)}
-              </p>
+              <dl style={{ margin: 0, display: "grid", gap: 6 }}>
+                <div>
+                  <dt style={{ fontWeight: 600, display: "inline" }}>ID: </dt>
+                  <dd style={{ display: "inline", margin: 0 }}>
+                    {detailValueToText(selected.raw.barcode)}
+                  </dd>
+                </div>
+                <div>
+                  <dt style={{ fontWeight: 600, display: "inline" }}>Empresa: </dt>
+                  <dd style={{ display: "inline", margin: 0 }}>
+                    {detailValueToText(selected.raw.empresa)}
+                  </dd>
+                </div>
+                <div>
+                  <dt style={{ fontWeight: 600, display: "inline" }}>Estado: </dt>
+                  <dd style={{ display: "inline", margin: 0 }}>
+                    {detailValueToText(selected.raw.estado)}
+                  </dd>
+                </div>
+                <div>
+                  <dt style={{ fontWeight: 600, display: "inline" }}>Estante: </dt>
+                  <dd style={{ display: "inline", margin: 0 }}>
+                    {detailValueToText(selected.raw.estante)}
+                  </dd>
+                </div>
+                <div>
+                  <dt style={{ fontWeight: 600, display: "inline" }}>
+                    Fecha de ingreso: 
+                  </dt>
+                  <dd style={{ display: "inline", margin: 0 }}>
+                    {detailValueToText(selected.raw.fechaIngreso)}
+                  </dd>
+                </div>
+                <div>
+                  <dt style={{ fontWeight: 600, display: "inline" }}>Nombre: </dt>
+                  <dd style={{ display: "inline", margin: 0 }}>
+                    {detailValueToText(selected.raw.nombre)}
+                  </dd>
+                </div>
+                <div>
+                  <dt style={{ fontWeight: 600, display: "inline" }}>Tipo: </dt>
+                  <dd style={{ display: "inline", margin: 0 }}>
+                    {detailValueToText(selected.raw.tipo)}
+                  </dd>
+                </div>
+                <div>
+                  <dt style={{ fontWeight: 600, display: "inline" }}>
+                    Fecha entrega a cliente: 
+                  </dt>
+                  <dd style={{ display: "inline", margin: 0 }}>
+                    {detailValueToText(selected.raw.entregadoAt)}
+                  </dd>
+                </div>
+                <div>
+                  <dt style={{ fontWeight: 600, display: "inline" }}>
+                    Fecha entrega a repartidor: 
+                  </dt>
+                  <dd style={{ display: "inline", margin: 0 }}>
+                    {detailValueToText(selected.raw.devueltoAt)}
+                  </dd>
+                </div>
+                <div>
+                  <dt style={{ fontWeight: 600, display: "inline" }}>Fecha salida: </dt>
+                  <dd style={{ display: "inline", margin: 0 }}>
+                    {detailValueToText(selected.raw.fechaSalida)}
+                  </dd>
+                </div>
+              </dl>
             </>
           ) : (
-            <p>Seleccioná un paquete para ver JSON.</p>
+            <p>Seleccioná un paquete para ver el detalle.</p>
           )}
         </div>
       </div>
