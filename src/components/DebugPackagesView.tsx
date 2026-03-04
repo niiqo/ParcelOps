@@ -36,7 +36,7 @@ const ESTADOS: EstadoPackage[] = [
   "DEVUELTO",
 ];
 const TIPOS: Tipo[] = ["entrega", "envio"];
-const EMPRESAS: Empresa[] = ["SEUR"];
+const EMPRESAS: Empresa[] = ["SEUR","TIPSA"];
 
 function isEstado(value: unknown): value is EstadoPackage {
   return typeof value === "string" && ESTADOS.includes(value as EstadoPackage);

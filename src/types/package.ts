@@ -6,7 +6,7 @@ export type EstadoPackage =
   | "PENDIENTE_DEVOLUCION"
   | "ENTREGADO"
   | "DEVUELTO";
-export type Empresa = "SEUR";
+export type Empresa = "SEUR" | "TIPSA";
 
 export type PackageDoc = {
   nombre?: string;
