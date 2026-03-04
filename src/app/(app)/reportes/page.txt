@@ -17,12 +17,6 @@ function getTodayDateValue() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function getMinusDaysDateValue(days: number) {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
 function getTimestampRange(startDate: string, endDate: string) {
   const start = new Date(`${startDate}T00:00:00`);
   const end = new Date(`${endDate}T23:59:59.999`);
@@ -36,7 +30,7 @@ function getTimestampRange(startDate: string, endDate: string) {
 }
 
 export default function ReportesPage() {
-  const [startDate, setStartDate] = useState(() => getMinusDaysDateValue(30));
+  const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState(getTodayDateValue);
   const [loading, setLoading] = useState(false);
   const [ingresos, setIngresos] = useState<Record<string, number>>({});
