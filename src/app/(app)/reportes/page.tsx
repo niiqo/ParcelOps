@@ -173,7 +173,8 @@ export default function ReportesPage() {
       {mensaje ? <p>{mensaje}</p> : null}
 
       <hr />
-
+    <div style={{ display: "flex", gap: 40, marginTop: 10 }}>
+      <div style={{ flex: 1 }}>
       <h2>Ingresos</h2>
       <ul>
         <li>Entrega: {ingresos.entrega ?? 0}</li>
@@ -182,7 +183,8 @@ export default function ReportesPage() {
           <b>Total ingresos:</b> {ingresos.total ?? 0}
         </li>
       </ul>
-
+      </div>
+      <div style={{ flex: 1 }}>
       <h2>Egresos</h2>
       <ul>
         <li>Entregado a cliente: {egresos.ENTREGADO ?? 0}</li>
@@ -191,14 +193,13 @@ export default function ReportesPage() {
           <b>Total egresos:</b> {egresos.total ?? 0}
         </li>
       </ul>
+      </div>
 
-      <hr />
+      
 
-      <p style={{ fontSize: 12, opacity: 0.75 }}>
-        Nota: ingresos se calculan por <code>fechaIngreso</code> (o
-        <code> createdAt</code>) y egresos por
-        <code> entregadoAt/devueltoAt</code>.
-      </p>
+      
+    </div>
+
     </div>
   );
 }
