@@ -142,7 +142,7 @@ export default function ReportesPage() {
 
   return (
     <div style={{ padding: 20, maxWidth: 720 }}>
-      <h1>Reporte</h1>
+      <h1>Reportes</h1>
 
       <div style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
         <div>
