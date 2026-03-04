@@ -174,7 +174,7 @@ export default function ReportesPage() {
 
       <hr />
 
-      <h2>Ingresos (por Tipo)</h2>
+      <h2>Ingresos</h2>
       <ul>
         <li>Entrega: {ingresos.entrega ?? 0}</li>
         <li>Envío: {ingresos.envio ?? 0}</li>
@@ -183,10 +183,10 @@ export default function ReportesPage() {
         </li>
       </ul>
 
-      <h2>Egresos (por Estado)</h2>
+      <h2>Egresos</h2>
       <ul>
-        <li>Entregado: {egresos.ENTREGADO ?? 0}</li>
-        <li>Devuelto: {egresos.DEVUELTO ?? 0}</li>
+        <li>Entregado a cliente: {egresos.ENTREGADO ?? 0}</li>
+        <li>Devuelto a repartidor: {egresos.DEVUELTO ?? 0}</li>
         <li>
           <b>Total egresos:</b> {egresos.total ?? 0}
         </li>
