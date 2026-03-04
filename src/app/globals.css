@@ -80,6 +80,24 @@ a {
   color: #fff;
 }
 
+.app-shell__nav-divider {
+  list-style: none;
+  margin: 12px 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.app-shell__nav-link--danger {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: #dc2626; /* rojo */
+}
+.app-shell__nav-link--danger:hover {
+  background: rgba(220, 38, 38, 0.08);
+}
+
 .app-shell__content {
   flex: 1;
   min-width: 0;

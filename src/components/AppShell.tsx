@@ -2,8 +2,9 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { useAuth } from "@/auth/AuthProvider";
 
 type AppShellProps = {
   children: ReactNode;
@@ -39,7 +40,13 @@ export default function AppShell({ children }: AppShellProps) {
     () => SHELL_EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix)),
     [pathname],
   );
+const router = useRouter();
+const { user, logout } = useAuth();
 
+async function handleLogout() {
+  await logout();
+  router.replace("/login");
+}
   const title = PAGE_TITLES[pathname] ?? "ParcelOps";
 
   if (isExcluded) return <>{children}</>;
@@ -55,22 +62,37 @@ export default function AppShell({ children }: AppShellProps) {
 
           <nav>
             <ul className="app-shell__nav-list">
-              {NAV_ITEMS.map((item) => {
-                const isActive = pathname.startsWith(item.href);
+  {NAV_ITEMS.map((item) => {
+    const isActive = pathname.startsWith(item.href);
 
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={() => setMobileOpen(false)}
-                      className={`app-shell__nav-link ${isActive ? "is-active" : ""}`}
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+    return (
+      <li key={item.href}>
+        <Link
+          href={item.href}
+          onClick={() => setMobileOpen(false)}
+          className={`app-shell__nav-link ${isActive ? "is-active" : ""}`}
+        >
+          {item.label}
+        </Link>
+      </li>
+    );
+  })}
+
+  <li className="app-shell__nav-divider" aria-hidden="true" />
+
+  <li>
+    <button
+      type="button"
+      onClick={async () => {
+        setMobileOpen(false);
+        await handleLogout();
+      }}
+      className="app-shell__nav-link app-shell__nav-link--danger"
+    >
+      Cerrar sesión{user?.email ? ` (${user.email})` : ""}
+    </button>
+  </li>
+</ul>
           </nav>
         </aside>
 
