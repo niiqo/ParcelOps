@@ -367,13 +367,7 @@ export default function DebugPackagesView({ title = "Debug paquetes" }: { title?
                     Fecha entrega a repartidor: 
                   </dt>
                   <dd style={{ display: "inline", margin: 0 }}>
-                    {detailValueToText(selected.raw.devueltoAt)}
-                  </dd>
-                </div>
-                <div>
-                  <dt style={{ fontWeight: 600, display: "inline" }}>Fecha salida: </dt>
-                  <dd style={{ display: "inline", margin: 0 }}>
-                    {detailValueToText(selected.raw.fechaSalida)}
+                    {detailValueToText(selected.raw.devueltoAt ?? selected.raw.fechaSalida)}
                   </dd>
                 </div>
               </dl>
