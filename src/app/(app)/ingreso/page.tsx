@@ -133,7 +133,7 @@ export default function IngresoPage() {
         {mensaje ? <p>{mensaje}</p> : null}
       </div>
 
-      <DebugPackagesView title="Debug paquetes" />
+      <DebugPackagesView title="Paquetes" />
     </div>
   );
 }
