@@ -1,40 +1,68 @@
 "use client";
 
 import { useState } from "react";
-import { signInWithEmailAndPassword,createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
+import type { FirebaseError } from "firebase/app";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+
+function errorMessage(err: unknown) {
+  if (typeof err === "object" && err !== null && "message" in err) {
+    return String((err as FirebaseError).message);
+  }
+  return "Error inesperado";
+}
 
 export default function LoginPage() {
   const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
+
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+async function register() {
+  setError(null);
+  setLoading(true);
 
-    async function register() {
-    setError(null);
-    setLoading(true);
+  try {
+    const cred = await createUserWithEmailAndPassword(
+      auth,
+      email.trim(),
+      pass
+    );
 
-    try {
-      await createUserWithEmailAndPassword(auth, email.trim(), pass);
-      router.replace("/ingreso");
-    } catch (e: any) {
-      setError(e?.message ?? "Error al crear usuario");
-    } finally {
-      setLoading(false);
-    }
+    // Asegura token listo (evita race condition de permisos)
+    await cred.user.getIdToken(true);
+
+    await setDoc(doc(db, "users", cred.user.uid), {
+      email: cred.user.email ?? email.trim(),
+      role: "warehouse",
+      createdAt: serverTimestamp(),
+    });
+
+    router.replace("/ingreso");
+  } catch (e: unknown) {
+    setError(errorMessage(e));
+  } finally {
+    setLoading(false);
   }
+}
 
   async function login() {
     setError(null);
     setLoading(true);
+
     try {
       await signInWithEmailAndPassword(auth, email.trim(), pass);
-      router.replace("/"); // o a donde quieras mandarlo post-login
-    } catch (e: any) {
-      setError(e?.message ?? "Error al iniciar sesión");
+      router.replace("/ingreso");
+    } catch (e: unknown) {
+      setError(errorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -50,6 +78,7 @@ export default function LoginPage() {
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
+        autoComplete="email"
       />
 
       <label>Contraseña</label>
@@ -58,14 +87,18 @@ export default function LoginPage() {
         type="password"
         value={pass}
         onChange={(e) => setPass(e.target.value)}
+        autoComplete="current-password"
       />
 
-      <button onClick={login} disabled={loading || !email || !pass}>
-        {loading ? "Ingresando..." : "Ingresar"}
-      </button>
-      <button onClick={register} disabled={loading || !email || !pass} style={{ marginLeft: 10 }}>
-  Crear usuario
-</button>
+      <div style={{ display: "flex", gap: 10 }}>
+        <button onClick={login} disabled={loading || !email || !pass}>
+          {loading ? "Procesando..." : "Ingresar"}
+        </button>
+
+        <button onClick={register} disabled={loading || !email || !pass}>
+          Crear usuario
+        </button>
+      </div>
 
       {error ? <p style={{ color: "crimson" }}>{error}</p> : null}
     </div>
