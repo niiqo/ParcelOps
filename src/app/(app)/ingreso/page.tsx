@@ -142,7 +142,8 @@ export default function IngresoPage() {
 
   return (
     <div style={{ display: "grid", gap: 20 }}>
-      <div style={{ padding: 20 }}>
+      <div className="p-6">
+        <div className="mx-auto max-w-6xl">
         <div
           style={{
             display: "grid",
@@ -274,6 +275,7 @@ export default function IngresoPage() {
             {mensajeCliente ? <p>{mensajeCliente}</p> : null}
           </div>
         </div>
+      </div>
       </div>
 
       <DebugPackagesView title="Paquetes" />

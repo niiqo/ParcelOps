@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --background: #f8fafc;
   --foreground: #0f172a;
@@ -11,7 +15,8 @@
 
 html,
 body {
-  min-height: 100%;
+  background: #f8fafc; /* slate-50 */
+  color: #0f172a;      /* slate-900 */
 }
 
 body {

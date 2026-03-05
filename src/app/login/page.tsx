@@ -60,7 +60,7 @@ async function register() {
 
     try {
       await signInWithEmailAndPassword(auth, email.trim(), pass);
-      router.replace("/ingreso");
+      router.replace("/");
     } catch (e: unknown) {
       setError(errorMessage(e));
     } finally {

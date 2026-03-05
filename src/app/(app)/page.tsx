@@ -13,11 +13,6 @@ export default function Home() {
       <EmptyState
         title="Selecciona un módulo"
         description="Usa la navegación lateral para comenzar con ingresos, retiros, búsquedas o reportes."
-        cta={
-          <Link href="/ingreso" className="dashboard-home__cta">
-            Ir a Ingreso
-          </Link>
-        }
       />
     </div>
   );
