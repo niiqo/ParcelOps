@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -8,8 +8,8 @@ import {
   query,
   where,
   Timestamp,
-  QuerySnapshot,
-  DocumentData,
+  type QuerySnapshot,
+  type DocumentData,
 } from "firebase/firestore";
 import type { PackageDoc } from "@/types/package";
 
@@ -35,13 +35,89 @@ function getTimestampRange(startDate: string, endDate: string) {
   };
 }
 
+function Alert({ msg }: { msg: string }) {
+  const isError = msg.trim().startsWith("❌");
+  const isWarn = msg.trim().startsWith("⚠️");
+  const cls = isError
+    ? "border-red-200 bg-red-50 text-red-800"
+    : isWarn
+      ? "border-amber-200 bg-amber-50 text-amber-900"
+      : "border-emerald-200 bg-emerald-50 text-emerald-800";
+
+  return <div className={`rounded-md border px-3 py-2 text-sm ${cls}`}>{msg}</div>;
+}
+
+function StatCard({
+  title,
+  items,
+  totalLabel,
+  totalValue,
+  badge,
+}: {
+  title: string;
+  items: Array<{ label: string; value: number }>;
+  totalLabel: string;
+  totalValue: number;
+  badge: { text: string; className: string };
+}) {
+  return (
+    <div className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        <span
+          className={[
+            "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
+            badge.className,
+          ].join(" ")}
+        >
+          {badge.text}
+        </span>
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {items.map((it) => (
+          <div key={it.label} className="flex items-center justify-between text-sm">
+            <span className="text-slate-600">{it.label}</span>
+            <span className="font-semibold text-slate-900 tabular-nums">{it.value}</span>
+          </div>
+        ))}
+
+        <div className="mt-3 border-t pt-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-semibold text-slate-900">{totalLabel}</span>
+            <span className="font-semibold text-slate-900 tabular-nums">{totalValue}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ReportesPage() {
   const [startDate, setStartDate] = useState(() => getMinusDaysDateValue(30));
   const [endDate, setEndDate] = useState(getTodayDateValue);
   const [loading, setLoading] = useState(false);
-  const [ingresos, setIngresos] = useState<Record<string, number>>({});
-  const [egresos, setEgresos] = useState<Record<string, number>>({});
+
+  const [ingresos, setIngresos] = useState<Record<string, number>>({
+    entrega: 0,
+    envio: 0,
+    total: 0,
+  });
+
+  const [egresos, setEgresos] = useState<Record<string, number>>({
+    ENTREGADO: 0,
+    DEVUELTO: 0,
+    total: 0,
+  });
+
   const [mensaje, setMensaje] = useState("");
+
+  const rangoLabel = useMemo(() => {
+    if (!startDate || !endDate) return "Rango sin definir";
+    const [y1, m1, d1] = startDate.split("-");
+    const [y2, m2, d2] = endDate.split("-");
+    return `${d1}/${m1}/${y1} → ${d2}/${m2}/${y2}`;
+  }, [startDate, endDate]);
 
   const cargar = async () => {
     if (!startDate || !endDate) {
@@ -132,6 +208,8 @@ export default function ReportesPage() {
 
       setIngresos(ing);
       setEgresos(egr);
+
+      setMensaje("✅ Reporte actualizado.");
     } catch (e) {
       console.error(e);
       setMensaje("❌ Error cargando reporte.");
@@ -141,65 +219,89 @@ export default function ReportesPage() {
   };
 
   return (
-    <div style={{ padding: 20, maxWidth: 720 }}>
-      <h1>Reportes</h1>
+    <div className="space-y-4">
+      {/* Header */}
+      <div>
+        <h2 className="text-base font-semibold text-slate-900">Reportes</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Resumen de ingresos y egresos por rango de fechas.
+        </p>
+      </div>
 
-      <div style={{ display: "flex", gap: 12, alignItems: "end", flexWrap: "wrap" }}>
-        <div>
-          <label>Fecha de inicio</label>
-          <br />
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
+      {/* Filters */}
+      <div className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Fecha de inicio</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="h-10 w-full rounded-md border bg-white px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Fecha de fin</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="h-10 w-full rounded-md border bg-white px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+            />
+          </div>
+
+          <button
+            onClick={cargar}
+            disabled={loading}
+            className={[
+              "inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium",
+              "bg-slate-900 text-white hover:bg-slate-800",
+              "disabled:cursor-not-allowed disabled:bg-slate-300",
+            ].join(" ")}
+            title="Recargar conteos para el rango"
+          >
+            {loading ? "Cargando..." : "Recargar"}
+          </button>
         </div>
 
-        <div>
-          <label>Fecha de fin</label>
-          <br />
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+            {rangoLabel}
+          </span>
+
+          <span className="text-xs text-slate-500">
+            Tip: por defecto muestra últimos 30 días.
+          </span>
         </div>
 
-        <button onClick={cargar} disabled={loading}>
-          {loading ? "Cargando..." : "Recargar"}
-        </button>
+        {mensaje ? <div className="mt-3"><Alert msg={mensaje} /></div> : null}
       </div>
 
-      {mensaje ? <p>{mensaje}</p> : null}
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <StatCard
+          title="Ingresos"
+          badge={{ text: "Altas", className: "bg-sky-50 text-sky-700 ring-1 ring-sky-200" }}
+          items={[
+            { label: "Entrega", value: ingresos.entrega ?? 0 },
+            { label: "Envío", value: ingresos.envio ?? 0 },
+          ]}
+          totalLabel="Total ingresos"
+          totalValue={ingresos.total ?? 0}
+        />
 
-      <hr />
-    <div style={{ display: "flex", gap: 40, marginTop: 10 }}>
-      <div style={{ flex: 1 }}>
-      <h2>Ingresos</h2>
-      <ul>
-        <li>Entrega: {ingresos.entrega ?? 0}</li>
-        <li>Envío: {ingresos.envio ?? 0}</li>
-        <li>
-          <b>Total ingresos:</b> {ingresos.total ?? 0}
-        </li>
-      </ul>
+        <StatCard
+          title="Egresos"
+          badge={{ text: "Salidas", className: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" }}
+          items={[
+            { label: "Entregado a cliente", value: egresos.ENTREGADO ?? 0 },
+            { label: "Devuelto a repartidor", value: egresos.DEVUELTO ?? 0 },
+          ]}
+          totalLabel="Total egresos"
+          totalValue={egresos.total ?? 0}
+        />
       </div>
-      <div style={{ flex: 1 }}>
-      <h2>Egresos</h2>
-      <ul>
-        <li>Entregado a cliente: {egresos.ENTREGADO ?? 0}</li>
-        <li>Devuelto a repartidor: {egresos.DEVUELTO ?? 0}</li>
-        <li>
-          <b>Total egresos:</b> {egresos.total ?? 0}
-        </li>
-      </ul>
-      </div>
-
-      
-
-      
-    </div>
-
     </div>
   );
 }
