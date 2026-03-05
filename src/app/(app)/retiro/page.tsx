@@ -13,20 +13,85 @@ import {
   writeBatch,
   serverTimestamp,
 } from "firebase/firestore";
-import type { PackageDoc, Tipo } from "@/types/package";
+import type { PackageDoc, Tipo, Empresa, EstadoPackage } from "@/types/package";
 
 function isTipo(v: unknown): v is Tipo {
   return v === "entrega" || v === "envio";
 }
 
+function isEmpresa(v: unknown): v is Empresa {
+  return v === "SEUR" || v === "TIPSA";
+}
+
 type Row = {
   id: string;
   nombre: string;
-  estante: string;
   tipo: Tipo | "-";
-  empresa: string;
-  estado: PackageDoc["estado"];
+  empresa: Empresa | "-";
+  estado: EstadoPackage;
 };
+
+function estadoLabel(estado: EstadoPackage) {
+  switch (estado) {
+    case "EN_DEPOSITO":
+      return "En depósito";
+    case "PENDIENTE_DEVOLUCION":
+      return "Pendiente devolución";
+    case "ENTREGADO":
+      return "Entregado";
+    case "DEVUELTO":
+      return "Devuelto";
+    default:
+      return estado;
+  }
+}
+
+function estadoBadgeClass(estado: EstadoPackage) {
+  switch (estado) {
+    case "EN_DEPOSITO":
+      return "bg-sky-50 text-sky-700 ring-1 ring-sky-200";
+    case "PENDIENTE_DEVOLUCION":
+      return "bg-amber-50 text-amber-800 ring-1 ring-amber-200";
+    case "ENTREGADO":
+      return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
+    case "DEVUELTO":
+      return "bg-violet-50 text-violet-700 ring-1 ring-violet-200";
+    default:
+      return "bg-slate-50 text-slate-700 ring-1 ring-slate-200";
+  }
+}
+
+function empresaBadgeClass(empresa: Empresa | "-") {
+  switch (empresa) {
+    case "SEUR":
+      return "bg-cyan-50 text-cyan-800 ring-1 ring-cyan-200";
+    case "TIPSA":
+      return "bg-fuchsia-50 text-fuchsia-800 ring-1 ring-fuchsia-200";
+    default:
+      return "bg-slate-50 text-slate-700 ring-1 ring-slate-200";
+  }
+}
+
+function tipoBadgeClass(tipo: Tipo | "-") {
+  switch (tipo) {
+    case "envio":
+      return "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200";
+    case "entrega":
+      return "bg-slate-50 text-slate-700 ring-1 ring-slate-200";
+    default:
+      return "bg-slate-50 text-slate-700 ring-1 ring-slate-200";
+  }
+}
+
+function Alert({ msg }: { msg: string }) {
+  const isError = msg.trim().startsWith("❌");
+  const cls = isError
+    ? "border-red-200 bg-red-50 text-red-800"
+    : "border-emerald-200 bg-emerald-50 text-emerald-800";
+  return (
+    <div className={`rounded-md border px-3 py-2 text-sm ${cls}`}>{msg}</div>
+  );
+}
 
 export default function RetiroPage() {
   const [rows, setRows] = useState<Row[]>([]);
@@ -35,6 +100,7 @@ export default function RetiroPage() {
 
   useEffect(() => {
     void cargarPendientes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function cargarPendientes() {
@@ -56,13 +122,13 @@ export default function RetiroPage() {
           const data = d.data() as PackageDoc;
 
           const tipo: Tipo | "-" = isTipo(data.tipo) ? data.tipo : "-";
+          const empresa: Empresa | "-" = isEmpresa(data.empresa) ? data.empresa : "-";
 
           return {
             id: d.id,
             nombre: data.nombre ?? "",
-            estante: data.estante ?? "",
             tipo,
-            empresa: data.empresa ?? "",
+            empresa,
             estado: data.estado,
           };
         })
@@ -74,7 +140,7 @@ export default function RetiroPage() {
 
       setRows(list);
       if (!list.length)
-        setMensaje("No hay paquetes pendientes de devolución para retiro.");
+        setMensaje("No hay paquetes pendientes para retiro del transportista.");
     } catch (e) {
       console.error(e);
       setMensaje("❌ Error cargando pendientes.");
@@ -119,9 +185,7 @@ export default function RetiroPage() {
 
       await batch.commit();
 
-      setMensaje(
-        `✅ Retiro registrado: ${rows.length} paquetes retirados por transportista.`,
-      );
+      setMensaje(`✅ Retiro registrado: ${rows.length} paquetes retirados.`);
       await cargarPendientes();
     } catch (e) {
       console.error(e);
@@ -132,81 +196,134 @@ export default function RetiroPage() {
   }
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Retiro (Transportista)</h1>
-
-      <div style={{ marginBottom: 12 }}>
-        <button onClick={cargarPendientes} disabled={loading}>
-          {loading ? "Cargando..." : "Actualizar"}
-        </button>{" "}
-        <button
-          onClick={marcarLoteRetirado}
-          disabled={loading || rows.length === 0}
-        >
-          Marcar lote como retirado
-        </button>
+    <div className="space-y-4">
+      {/* Header */}
+      <div>
+        <h2 className="text-base font-semibold text-slate-900">
+          Retiro por lote
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Lista de paquetes listos para entregar al transportista y registrar el retiro del lote.
+        </p>
       </div>
 
-      <p>
-        <b>Pendientes:</b> {cantidad}
-      </p>
+      {/* Actions */}
+      <div className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-slate-700">
+            <span className="text-slate-600">Pendientes: </span>
+            <span className="font-semibold text-slate-900">{cantidad}</span>
+          </div>
 
-      {rows.length > 0 && (
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-                Barcode
-              </th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-                Nombre
-              </th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-                Estante
-              </th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-                Tipo
-              </th>
-              <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-                Empresa
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td
-                  style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}
-                >
-                  {r.id}
-                </td>
-                <td
-                  style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}
-                >
-                  {r.nombre || "-"}
-                </td>
-                <td
-                  style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}
-                >
-                  {r.estante || "-"}
-                </td>
-                <td
-                  style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}
-                >
-                  {r.tipo}
-                </td>
-                <td
-                  style={{ padding: "6px 0", borderBottom: "1px solid #eee" }}
-                >
-                  {r.empresa || "-"}
-                </td>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={cargarPendientes}
+              disabled={loading}
+              className={[
+                "inline-flex h-10 items-center justify-center rounded-md px-3 text-sm font-medium",
+                "border bg-white text-slate-900 hover:bg-slate-50",
+                "disabled:cursor-not-allowed disabled:text-slate-400",
+              ].join(" ")}
+            >
+              {loading ? "Cargando..." : "Actualizar"}
+            </button>
+
+            <button
+              onClick={marcarLoteRetirado}
+              disabled={loading || rows.length === 0}
+              className={[
+                "inline-flex h-10 items-center justify-center rounded-md px-3 text-sm font-medium",
+                "bg-slate-900 text-white hover:bg-slate-800",
+                "disabled:cursor-not-allowed disabled:bg-slate-300",
+              ].join(" ")}
+              title="Marca el lote como retirado y actualiza estados (batch)"
+            >
+              Marcar lote como retirado
+            </button>
+          </div>
+        </div>
+
+        {mensaje ? <div className="mt-3"><Alert msg={mensaje} /></div> : null}
+      </div>
+
+      {/* Table */}
+      {rows.length > 0 ? (
+        <div className="overflow-x-auto rounded-xl border bg-white">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-600">
+              <tr>
+                <th className="px-4 py-3">Paquete</th>
+                <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Tipo</th>
+                <th className="px-4 py-3">Empresa</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
 
-      {mensaje && <p style={{ marginTop: 12 }}>{mensaje}</p>}
+            <tbody className="divide-y divide-slate-100">
+              {rows.map((r) => (
+                <tr key={r.id} className="hover:bg-slate-50">
+                  {/* Paquete: nombre + id */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate font-medium text-slate-900">
+                          {r.nombre?.trim() ? r.nombre : "(Sin nombre)"}
+                        </div>
+                        <div className="mt-0.5 font-mono text-xs text-slate-500">
+                          ID: {r.id}
+                        </div>
+                      </div>
+
+                     
+                    </div>
+                  </td>
+
+                  <td className="px-4 py-3">
+                    <span
+                      className={[
+                        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
+                        estadoBadgeClass(r.estado),
+                      ].join(" ")}
+                      title={r.estado}
+                    >
+                      {estadoLabel(r.estado)}
+                    </span>
+                  </td>
+
+                  <td className="px-4 py-3">
+                    <span
+                      className={[
+                        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
+                        tipoBadgeClass(r.tipo),
+                      ].join(" ")}
+                    >
+                      {r.tipo}
+                    </span>
+                  </td>
+
+                  <td className="px-4 py-3">
+                    <span
+                      className={[
+                        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
+                        empresaBadgeClass(r.empresa),
+                      ].join(" ")}
+                    >
+                      {r.empresa}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {/* Empty state (when not loading and no rows and no mensaje) */}
+      {!loading && rows.length === 0 && !mensaje ? (
+        <div className="rounded-2xl border bg-white p-4 text-sm text-slate-600">
+          No hay paquetes para mostrar.
+        </div>
+      ) : null}
     </div>
   );
 }
