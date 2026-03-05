@@ -35,8 +35,9 @@ const ESTADOS: EstadoPackage[] = [
   "ENTREGADO",
   "DEVUELTO",
 ];
+
 const TIPOS: Tipo[] = ["entrega", "envio"];
-const EMPRESAS: Empresa[] = ["SEUR","TIPSA"];
+const EMPRESAS: Empresa[] = ["SEUR", "TIPSA"];
 
 function isEstado(value: unknown): value is EstadoPackage {
   return typeof value === "string" && ESTADOS.includes(value as EstadoPackage);
@@ -91,15 +92,16 @@ function mapDoc(snap: QueryDocumentSnapshot<DocumentData>): PackageDebugRow {
   };
 }
 
-function tsToText(ts: Timestamp | null): string {
+function formatShortDate(ts: Timestamp | null): string {
   if (!ts) return "-";
-  return ts.toDate().toLocaleString();
-}
+  const d = ts.toDate();
 
-function dateValueToText(value: Timestamp | Date | null | undefined): string {
-  const dateValue = toDateValue(value);
-  if (!dateValue) return "-";
-  return dateValue.toLocaleString();
+  // Formato: dd/MM HH:mm (ej: 05/03 13:35)
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm} ${hh}:${min}`;
 }
 
 function detailValueToText(value: unknown): string {
@@ -114,7 +116,44 @@ function detailValueToText(value: unknown): string {
   return "-";
 }
 
-export default function DebugPackagesView({ title = "Debug paquetes" }: { title?: string }) {
+function estadoBadgeClass(estado: EstadoPackage | "-") {
+  switch (estado) {
+    case "EN_DEPOSITO":
+      return "bg-sky-50 text-sky-700 ring-1 ring-sky-200";
+    case "PENDIENTE_DEVOLUCION":
+      return "bg-amber-50 text-amber-800 ring-1 ring-amber-200";
+    case "ENTREGADO":
+      return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
+    case "DEVUELTO":
+      return "bg-violet-50 text-violet-700 ring-1 ring-violet-200";
+    default:
+      return "bg-slate-50 text-slate-700 ring-1 ring-slate-200";
+  }
+}
+
+function tipoBadgeClass(tipo: Tipo | "-") {
+  switch (tipo) {
+    case "entrega":
+      return "bg-slate-50 text-slate-700 ring-1 ring-slate-200";
+    case "envio":
+      return "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200";
+    default:
+      return "bg-slate-50 text-slate-700 ring-1 ring-slate-200";
+  }
+}
+
+function empresaBadgeClass(empresa: Empresa | "-") {
+  switch (empresa) {
+    case "SEUR":
+      return "bg-cyan-50 text-cyan-800 ring-1 ring-cyan-200";
+    case "TIPSA":
+      return "bg-fuchsia-50 text-fuchsia-800 ring-1 ring-fuchsia-200";
+    default:
+      return "bg-slate-50 text-slate-700 ring-1 ring-slate-200";
+  }
+}
+
+export default function DebugPackagesView({ title = "Paquetes" }: { title?: string }) {
   const [rows, setRows] = useState<PackageDebugRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -126,11 +165,7 @@ export default function DebugPackagesView({ title = "Debug paquetes" }: { title?
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const q = query(
-      collection(db, "packages"),
-      orderBy("createdAt", "desc"),
-      limit(200),
-    );
+    const q = query(collection(db, "packages"), orderBy("createdAt", "desc"), limit(200));
 
     const unsubscribe = onSnapshot(
       q,
@@ -159,6 +194,7 @@ export default function DebugPackagesView({ title = "Debug paquetes" }: { title?
 
       if (!tokens.length) return true;
 
+      // Seguimos buscando por barcode/id aunque no lo mostremos (útil)
       const haystack = [
         row.id,
         row.barcode,
@@ -181,18 +217,12 @@ export default function DebugPackagesView({ title = "Debug paquetes" }: { title?
   );
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>{title}</h1>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-          gap: 8,
-          marginBottom: 12,
-        }}
-      >
+    <div className="space-y-4">
+ 
+      {/* Filters */}
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <select
+          className="h-10 rounded-md border bg-white px-3 text-sm"
           value={estadoFilter}
           onChange={(e) => setEstadoFilter(e.target.value as EstadoPackage | "ALL")}
         >
@@ -205,6 +235,7 @@ export default function DebugPackagesView({ title = "Debug paquetes" }: { title?
         </select>
 
         <select
+          className="h-10 rounded-md border bg-white px-3 text-sm"
           value={tipoFilter}
           onChange={(e) => setTipoFilter(e.target.value as Tipo | "ALL")}
         >
@@ -217,6 +248,7 @@ export default function DebugPackagesView({ title = "Debug paquetes" }: { title?
         </select>
 
         <select
+          className="h-10 rounded-md border bg-white px-3 text-sm"
           value={empresaFilter}
           onChange={(e) => setEmpresaFilter(e.target.value as Empresa | "ALL")}
         >
@@ -229,151 +261,163 @@ export default function DebugPackagesView({ title = "Debug paquetes" }: { title?
         </select>
 
         <input
+          className="h-10 rounded-md border bg-white px-3 text-sm"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por barcode, nombre, estado..."
+          placeholder="Buscar por nombre, estante, estado..."
         />
       </div>
 
-      {loading ? <p>Cargando...</p> : null}
-      {message ? <p>{message}</p> : null}
+      {/* Status */}
+      {loading ? (
+        <div className="rounded-md border bg-white px-3 py-2 text-sm text-slate-700">
+          Cargando...
+        </div>
+      ) : null}
 
-      <p>Total: {filtered.length}</p>
+      {message ? (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {message}
+        </div>
+      ) : null}
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: 12 }}>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
+      {/* Table + Detail */}
+      <div className="grid gap-4 lg:grid-cols-[1.7fr_1fr]">
+        {/* Table */}
+        <div className="overflow-x-auto rounded-xl border bg-white">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-600">
               <tr>
-                <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-                  Barcode
-                </th>
-                <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-                  Nombre
-                </th>
-                <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-                  Estado
-                </th>
-                <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-                  Tipo
-                </th>
-                <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-                  Empresa
-                </th>
-                <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-                  Marcado devolución
-                </th>
-                <th style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
-                  Created
-                </th>
+                <th className="px-4 py-3">Nombre</th>
+                <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Tipo</th>
+                <th className="px-4 py-3">Empresa</th>
+                <th className="px-4 py-3">Created</th>
               </tr>
             </thead>
-            <tbody>
-              {filtered.map((row) => (
-                <tr
-                  key={row.id}
-                  onClick={() => setSelectedId(row.id)}
-                  style={{
-                    cursor: "pointer",
-                    background: selectedId === row.id ? "#eef4ff" : "transparent",
-                  }}
-                >
-                  <td style={{ borderBottom: "1px solid #eee", padding: "6px 0" }}>
-                    {row.barcode || "-"}
-                  </td>
-                  <td style={{ borderBottom: "1px solid #eee", padding: "6px 0" }}>
-                    {row.nombre || "-"}
-                  </td>
-                  <td style={{ borderBottom: "1px solid #eee", padding: "6px 0" }}>
-                    {row.estado}
-                  </td>
-                  <td style={{ borderBottom: "1px solid #eee", padding: "6px 0" }}>
-                    {row.tipo}
-                  </td>
-                  <td style={{ borderBottom: "1px solid #eee", padding: "6px 0" }}>
-                    {row.empresa}
-                  </td>
-                  <td style={{ borderBottom: "1px solid #eee", padding: "6px 0" }}>
-                    {dateValueToText(row.marcadoDevolucionAt)}
-                  </td>
-                  <td style={{ borderBottom: "1px solid #eee", padding: "6px 0" }}>
-                    {tsToText(row.createdAt)}
-                  </td>
-                </tr>
-              ))}
+
+            <tbody className="divide-y divide-slate-100">
+              {filtered.map((row) => {
+                const isSelected = selectedId === row.id;
+
+                return (
+                  <tr
+                    key={row.id}
+                    onClick={() => setSelectedId(row.id)}
+                    className={[
+                      "cursor-pointer hover:bg-slate-50",
+                      isSelected ? "bg-slate-100" : "bg-white",
+                    ].join(" ")}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-slate-900">
+                        {row.nombre?.trim() ? row.nombre : "-"}
+                      </div>
+                      <div className="mt-0.5 text-xs text-slate-500">
+                        Estante: {row.estante?.trim() ? row.estante : "-"}
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <span
+                        className={[
+                          "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
+                          estadoBadgeClass(row.estado),
+                        ].join(" ")}
+                      >
+                        {row.estado}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <span
+                        className={[
+                          "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
+                          tipoBadgeClass(row.tipo),
+                        ].join(" ")}
+                      >
+                        {row.tipo}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <span
+                        className={[
+                          "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
+                          empresaBadgeClass(row.empresa),
+                        ].join(" ")}
+                      >
+                        {row.empresa}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3 font-mono text-xs text-slate-600">
+                      {formatShortDate(row.createdAt)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
-        <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10 }}>
-          <h3 style={{ marginTop: 0 }}>Detalle</h3>
+        {/* Detail */}
+        <div className="rounded-xl border bg-white p-4">
+          <h3 className="text-sm font-semibold text-slate-900">Detalle</h3>
+
           {selected ? (
-            <>
-              <dl style={{ margin: 0, display: "grid", gap: 6 }}>
-                <div>
-                  <dt style={{ fontWeight: 600, display: "inline" }}>ID: </dt>
-                  <dd style={{ display: "inline", margin: 0 }}>
-                    {detailValueToText(selected.raw.barcode)}
-                  </dd>
-                </div>
-                <div>
-                  <dt style={{ fontWeight: 600, display: "inline" }}>Empresa: </dt>
-                  <dd style={{ display: "inline", margin: 0 }}>
-                    {detailValueToText(selected.raw.empresa)}
-                  </dd>
-                </div>
-                <div>
-                  <dt style={{ fontWeight: 600, display: "inline" }}>Estado: </dt>
-                  <dd style={{ display: "inline", margin: 0 }}>
-                    {detailValueToText(selected.raw.estado)}
-                  </dd>
-                </div>
-                <div>
-                  <dt style={{ fontWeight: 600, display: "inline" }}>Estante: </dt>
-                  <dd style={{ display: "inline", margin: 0 }}>
-                    {detailValueToText(selected.raw.estante)}
-                  </dd>
-                </div>
-                <div>
-                  <dt style={{ fontWeight: 600, display: "inline" }}>
-                    Fecha de ingreso: 
-                  </dt>
-                  <dd style={{ display: "inline", margin: 0 }}>
-                    {detailValueToText(selected.raw.fechaIngreso)}
-                  </dd>
-                </div>
-                <div>
-                  <dt style={{ fontWeight: 600, display: "inline" }}>Nombre: </dt>
-                  <dd style={{ display: "inline", margin: 0 }}>
-                    {detailValueToText(selected.raw.nombre)}
-                  </dd>
-                </div>
-                <div>
-                  <dt style={{ fontWeight: 600, display: "inline" }}>Tipo: </dt>
-                  <dd style={{ display: "inline", margin: 0 }}>
-                    {detailValueToText(selected.raw.tipo)}
-                  </dd>
-                </div>
-                <div>
-                  <dt style={{ fontWeight: 600, display: "inline" }}>
-                    Fecha entrega a cliente: 
-                  </dt>
-                  <dd style={{ display: "inline", margin: 0 }}>
-                    {detailValueToText(selected.raw.entregadoAt)}
-                  </dd>
-                </div>
-                <div>
-                  <dt style={{ fontWeight: 600, display: "inline" }}>
-                    Fecha entrega a repartidor: 
-                  </dt>
-                  <dd style={{ display: "inline", margin: 0 }}>
-                    {detailValueToText(selected.raw.devueltoAt ?? selected.raw.fechaSalida)}
-                  </dd>
-                </div>
-              </dl>
-            </>
+            <dl className="mt-3 grid gap-2 text-sm">
+              <div>
+                <dt className="inline font-semibold">ID: </dt>
+                <dd className="inline m-0">{detailValueToText(selected.raw.barcode)}</dd>
+              </div>
+
+              <div>
+                <dt className="inline font-semibold">Empresa: </dt>
+                <dd className="inline m-0">{detailValueToText(selected.raw.empresa)}</dd>
+              </div>
+
+              <div>
+                <dt className="inline font-semibold">Estado: </dt>
+                <dd className="inline m-0">{detailValueToText(selected.raw.estado)}</dd>
+              </div>
+
+              <div>
+                <dt className="inline font-semibold">Estante: </dt>
+                <dd className="inline m-0">{detailValueToText(selected.raw.estante)}</dd>
+              </div>
+
+              <div>
+                <dt className="inline font-semibold">Fecha de ingreso: </dt>
+                <dd className="inline m-0">{detailValueToText(selected.raw.fechaIngreso)}</dd>
+              </div>
+
+              <div>
+                <dt className="inline font-semibold">Nombre: </dt>
+                <dd className="inline m-0">{detailValueToText(selected.raw.nombre)}</dd>
+              </div>
+
+              <div>
+                <dt className="inline font-semibold">Tipo: </dt>
+                <dd className="inline m-0">{detailValueToText(selected.raw.tipo)}</dd>
+              </div>
+
+              <div>
+                <dt className="inline font-semibold">Fecha entrega a cliente: </dt>
+                <dd className="inline m-0">{detailValueToText(selected.raw.entregadoAt)}</dd>
+              </div>
+
+              <div>
+                <dt className="inline font-semibold">Fecha entrega a repartidor: </dt>
+                <dd className="inline m-0">
+                  {detailValueToText(selected.raw.devueltoAt ?? selected.raw.fechaSalida)}
+                </dd>
+              </div>
+            </dl>
           ) : (
-            <p>Seleccioná un paquete para ver el detalle.</p>
+            <p className="mt-3 text-sm text-slate-600">
+              Seleccioná un paquete para ver el detalle.
+            </p>
           )}
         </div>
       </div>
