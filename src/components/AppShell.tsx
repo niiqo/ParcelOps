@@ -18,6 +18,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/ingreso", label: "Ingreso", icon: "📦" },
+  { href: "/paquetes", label: "Paquetes", icon: "🗂️" },
   { href: "/busqueda", label: "Búsqueda", icon: "🔎" },
   { href: "/retiro", label: "Retiros", icon: "🚚" },
   { href: "/reportes", label: "Reportes", icon: "📊" },
@@ -26,6 +27,7 @@ const NAV_ITEMS: NavItem[] = [
 const PAGE_TITLES: Record<string, string> = {
   "/": "Panel",
   "/ingreso": "Ingreso",
+  "/paquetes": "Paquetes",
   "/retiro": "Retiros",
   "/busqueda": "Búsqueda",
   "/reportes": "Reportes",
