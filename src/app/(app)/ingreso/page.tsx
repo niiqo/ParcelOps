@@ -128,7 +128,7 @@ export default function IngresoPage() {
       await batch.commit();
 
       setMensajeCliente(
-        `✅ Se crearon ${cantidadFinal} paquetes de envío para ${empresaCliente}.`
+        `✅ Se crearon ${cantidadFinal} paquetes de envío para ${empresaCliente}.`,
       );
       setCantidadCliente(CLAMP_CANTIDAD_MIN);
       setEmpresaCliente("SEUR");
@@ -144,138 +144,166 @@ export default function IngresoPage() {
     <div style={{ display: "grid", gap: 20 }}>
       <div className="p-6">
         <div className="mx-auto max-w-6xl">
-        <div
-          style={{
-            display: "grid",
-            gap: 24,
-            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-          }}
-        >
-          <div>
-            <h1>Ingreso de Paquete Transportista</h1>
+          <div
+            style={{
+              display: "grid",
+              gap: 24,
+              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+            }}
+          >
+            <div className="rounded-xl border bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold border-b pb-2 mb-4">
+                Ingreso de Paquete Transportista
+              </h2>
 
-            <form onSubmit={handleSubmit}>
-              <div>
-                <label>Nombre destinatario</label>
-                <br />
-                <input
-                  id="nombre"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  autoComplete="off"
-                />
-              </div>
-
-              <div>
-                <label>Estante</label>
-                <br />
-                <input
-                  value={estante}
-                  onChange={(e) => setEstante(e.target.value)}
-                  autoComplete="off"
-                />
-              </div>
-
-              <div>
-                <label>Empresa</label>
-                <br />
-                <select
-                  value={empresa}
-                  onChange={(e) => setEmpresa(e.target.value as Empresa)}
-                >
-                  <option value="SEUR">SEUR</option>
-                  <option value="TIPSA">TIPSA</option>
-                </select>
-              </div>
-
-              <div>
-                <label>Tipo</label>
-                <br />
-                <select
-                  value={tipo}
-                  onChange={(e) => setTipo(e.target.value as Tipo)}
-                >
-                  <option value="entrega">Entrega</option>
-                  <option value="envio">Envío</option>
-                </select>
-              </div>
-
-              <br />
-              <button type="submit" disabled={guardando}>
-                {guardando ? "Guardando..." : "Guardar"}
-              </button>
-            </form>
-
-            {mensaje ? <p>{mensaje}</p> : null}
-          </div>
-
-          <div>
-            <h1>Ingreso de Paquete Cliente</h1>
-
-            <form onSubmit={handleSubmitCliente}>
-              <div>
-                <label htmlFor="cantidad-cliente">Cantidad</label>
-                <br />
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <button
-                    type="button"
-                    onClick={() => actualizarCantidadCliente(cantidadCliente - 1)}
-                    disabled={guardandoCliente || cantidadCliente <= CLAMP_CANTIDAD_MIN}
-                  >
-                    -
-                  </button>
+              <form onSubmit={handleSubmit}>
+                <div>
+                  <label>Nombre destinatario</label>
+                  <br />
                   <input
-                    id="cantidad-cliente"
-                    type="number"
-                    min={CLAMP_CANTIDAD_MIN}
-                    max={CLAMP_CANTIDAD_MAX}
-                    value={cantidadCliente}
-                    onChange={(e) => {
-                      const value = Number(e.target.value);
-                      if (Number.isNaN(value)) {
-                        setCantidadCliente(CLAMP_CANTIDAD_MIN);
-                        return;
-                      }
-
-                      actualizarCantidadCliente(value);
-                    }}
-                    onBlur={() => actualizarCantidadCliente(cantidadCliente)}
-                    disabled={guardandoCliente}
-                    style={{ width: 70 }}
+                    className="w-full h-8 rounded-md border px-3"
+                    id="nombre"
+                    value={nombre}
+                    onChange={(e) => setNombre(e.target.value)}
+                    autoComplete="off"
                   />
-                  <button
-                    type="button"
-                    onClick={() => actualizarCantidadCliente(cantidadCliente + 1)}
-                    disabled={guardandoCliente || cantidadCliente >= CLAMP_CANTIDAD_MAX}
-                  >
-                    +
-                  </button>
                 </div>
-              </div>
 
-              <div>
-                <label>Empresa</label>
+                <div>
+                  <label>Estante</label>
+                  <br />
+                  <input
+                    className="w-full h-8 rounded-md border px-3"
+                    value={estante}
+                    onChange={(e) => setEstante(e.target.value)}
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div>
+                  <label>Empresa</label>
+                  <br />
+                  <select
+                    className="w-full h-8 rounded-md border px-3"
+                    value={empresa}
+                    onChange={(e) => setEmpresa(e.target.value as Empresa)}
+                  >
+                    <option value="SEUR">SEUR</option>
+                    <option value="TIPSA">TIPSA</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Tipo</label>
+                  <br />
+                  <select
+                    className="w-full h-8 rounded-md border px-3"
+                    value={tipo}
+                    onChange={(e) => setTipo(e.target.value as Tipo)}
+                  >
+                    <option value="entrega">Entrega</option>
+                    <option value="envio">Envío</option>
+                  </select>
+                </div>
+
                 <br />
-                <select
-                  value={empresaCliente}
-                  onChange={(e) => setEmpresaCliente(e.target.value as Empresa)}
-                  disabled={guardandoCliente}
-                >
-                  <option value="SEUR">SEUR</option>
-                  <option value="TIPSA">TIPSA</option>
-                </select>
-              </div>
+                <button 
+                className="h-10 rounded-md bg-slate-900 px-4 text-white hover:bg-slate-800"
+                type="submit" disabled={guardando}>
+                  {guardando ? "Guardando..." : "Guardar"}
+                </button>
+              </form>
 
-              <br />
-              <button type="submit" disabled={guardandoCliente}>
-                {guardandoCliente ? "Guardando..." : "Guardar"}
-              </button>
-            </form>
+              {mensaje ? <p>{mensaje}</p> : null}
+            </div>
 
-            {mensajeCliente ? <p>{mensajeCliente}</p> : null}
+            <div className="rounded-xl border bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-semibold border-b pb-2 mb-4">
+                Ingreso de Paquete Cliente
+              </h2>
+
+              <form onSubmit={handleSubmitCliente}>
+                <div>
+                  <label htmlFor="cantidad-cliente">Cantidad</label>
+                  <br />
+                  <div
+                    style={{ display: "flex", gap: 8, alignItems: "center" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        actualizarCantidadCliente(cantidadCliente - 1)
+                      }
+                      disabled={
+                        guardandoCliente ||
+                        cantidadCliente <= CLAMP_CANTIDAD_MIN
+                      }
+                    >
+                      -
+                    </button>
+                    <input
+                      className="w-full h-8 rounded-md border px-3"
+                      id="cantidad-cliente"
+                      type="number"
+                      min={CLAMP_CANTIDAD_MIN}
+                      max={CLAMP_CANTIDAD_MAX}
+                      value={cantidadCliente}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        if (Number.isNaN(value)) {
+                          setCantidadCliente(CLAMP_CANTIDAD_MIN);
+                          return;
+                        }
+
+                        actualizarCantidadCliente(value);
+                      }}
+                      onBlur={() => actualizarCantidadCliente(cantidadCliente)}
+                      disabled={guardandoCliente}
+                      style={{ width: 70 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        actualizarCantidadCliente(cantidadCliente + 1)
+                      }
+                      disabled={
+                        guardandoCliente ||
+                        cantidadCliente >= CLAMP_CANTIDAD_MAX
+                      }
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label>Empresa</label>
+                  <br />
+                  <select
+                    className="w-full h-8 rounded-md border px-3"
+                    value={empresaCliente}
+                    onChange={(e) =>
+                      setEmpresaCliente(e.target.value as Empresa)
+                    }
+                    disabled={guardandoCliente}
+                  >
+                    <option value="SEUR">SEUR</option>
+                    <option value="TIPSA">TIPSA</option>
+                  </select>
+                </div>
+
+                <br />
+                <button 
+                  className="h-10 rounded-md bg-slate-900 px-4 text-white hover:bg-slate-800"
+                  type="submit" disabled={guardandoCliente}>
+                  {guardandoCliente ? "Guardando..." : "Guardar"}
+                </button>
+              </form>
+
+              {mensajeCliente ? <p>{mensajeCliente}</p> : null}
+            </div>
           </div>
         </div>
-      </div>
       </div>
 
       <DebugPackagesView title="Paquetes" />
