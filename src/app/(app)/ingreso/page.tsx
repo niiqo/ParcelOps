@@ -10,7 +10,6 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import type { Empresa, Tipo } from "@/types/package";
-import DebugPackagesView from "@/components/DebugPackagesView";
 
 const generarBarcode = (): string => {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
@@ -306,7 +305,6 @@ export default function IngresoPage() {
         </div>
       </div>
 
-      <DebugPackagesView title="Paquetes" />
     </div>
   );
 }
