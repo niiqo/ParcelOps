@@ -21,11 +21,13 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/paquetes", label: "Paquetes", icon: "🗂️" },
   { href: "/busqueda", label: "Búsqueda", icon: "🔎" },
   { href: "/retiro", label: "Retiros", icon: "🚚" },
+  { href: "/reorganizacion", label: "Reorganización", icon: "🔄"},
   { href: "/reportes", label: "Reportes", icon: "📊" },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
   "/": "Panel",
+  "/reorganizacion": "Reorganización",
   "/ingreso": "Ingreso",
   "/paquetes": "Paquetes",
   "/retiro": "Retiros",

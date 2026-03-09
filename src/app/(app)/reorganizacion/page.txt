@@ -1,0 +1,429 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  collection,
+  doc,
+  getDocs,
+  query,
+  where,
+  writeBatch,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { EstadoPackage, Tipo } from "@/types/package";
+
+const ESTANTES = ["1","2","3","4","5","6","7","8","s/n estante"];
+
+type Row = {
+  id: string;
+  nombre: string;
+  empresa: string;
+  estante: string;
+  estado: EstadoPackage;
+  tipo: Tipo | "-";
+};
+
+export default function ReorganizacionPage() {
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+  const [filtroEstante, setFiltroEstante] = useState("TODOS");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [destinoEstante, setDestinoEstante] = useState("");
+  const [moving, setMoving] = useState(false);
+  const [individualDestinos, setIndividualDestinos] = useState<Record<string, string>>({});
+  const [movingId, setMovingId] = useState<string | null>(null);
+
+  const resumenEstantes = useMemo(() => {
+    const acc: Record<string, number> = {};
+
+    for (const row of rows) {
+      const estante = row.estante.trim() || "Sin estante";
+      acc[estante] = (acc[estante] ?? 0) + 1;
+    }
+
+    return Object.entries(acc).sort(([a], [b]) => a.localeCompare(b));
+  }, [rows]);
+
+const estantesDisponibles = ESTANTES;
+
+  const filteredRows = useMemo(() => {
+    if (filtroEstante === "TODOS") return rows;
+
+    return rows.filter((row) => {
+      const estante = row.estante.trim() || "Sin estante";
+      return estante === filtroEstante;
+    });
+  }, [rows, filtroEstante]);
+
+  const visibleIds = useMemo(() => filteredRows.map((row) => row.id), [filteredRows]);
+
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
+
+  async function cargar() {
+    setLoading(true);
+    setMensaje("");
+
+    try {
+      const q = query(
+        collection(db, "packages"),
+        where("estado", "==", "EN_DEPOSITO")
+      );
+
+      const snap = await getDocs(q);
+
+      const list: Row[] = snap.docs.map((docSnap) => {
+        const d = docSnap.data() as {
+          nombre?: string;
+          empresa?: string;
+          estante?: string;
+          estado: EstadoPackage;
+          tipo?: Tipo;
+        };
+
+        return {
+          id: docSnap.id,
+          nombre: d.nombre ?? "",
+          empresa: d.empresa ?? "",
+          estante: d.estante ?? "",
+          estado: d.estado,
+          tipo: d.tipo ?? "-",
+        };
+      });
+
+      setRows(list);
+    } catch (e) {
+      console.error(e);
+      setMensaje("Error cargando paquetes");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function toggleFiltroDesdeTarjeta(estante: string) {
+    setFiltroEstante((prev) => (prev === estante ? "TODOS" : estante));
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  function toggleSelectAllVisible() {
+    setSelectedIds((prev) => {
+      if (allVisibleSelected) {
+        return prev.filter((id) => !visibleIds.includes(id));
+      }
+
+      const merged = new Set([...prev, ...visibleIds]);
+      return Array.from(merged);
+    });
+  }
+
+  function updateIndividualDestino(id: string, value: string) {
+    setIndividualDestinos((prev) => ({
+      ...prev,
+      [id]: value,
+    }));
+  }
+
+  async function moverSeleccionados() {
+    const destino = destinoEstante.trim();
+
+    if (selectedIds.length === 0) {
+      setMensaje("Selecciona al menos un paquete.");
+      return;
+    }
+
+    if (!destino) {
+      setMensaje("Indica un estante destino.");
+      return;
+    }
+
+    setMoving(true);
+    setMensaje("");
+
+    try {
+      const batch = writeBatch(db);
+
+      for (const id of selectedIds) {
+        const ref = doc(db, "packages", id);
+        batch.update(ref, { estante: destino });
+      }
+
+      await batch.commit();
+
+      const cantidad = selectedIds.length;
+
+      setSelectedIds([]);
+      setDestinoEstante("");
+      setFiltroEstante("TODOS");
+      setMensaje(
+        `${cantidad} ${cantidad === 1 ? "paquete movido" : "paquetes movidos"} a estante ${destino}.`
+      );
+
+      await cargar();
+    } catch (e) {
+      console.error(e);
+      setMensaje("Error moviendo paquetes.");
+    } finally {
+      setMoving(false);
+    }
+  }
+
+  async function moverIndividual(id: string, estanteActual: string) {
+    const destino = (individualDestinos[id] ?? estanteActual).trim();
+    const actual = estanteActual.trim();
+
+    if (!destino) {
+      setMensaje("Indica un estante destino para el paquete.");
+      return;
+    }
+
+    if (destino === actual) {
+      setMensaje("Debes seleccionar un estante distinto al actual.");
+      return;
+    }
+
+    setMovingId(id);
+    setMensaje("");
+
+    try {
+      const ref = doc(db, "packages", id);
+      const batch = writeBatch(db);
+
+      batch.update(ref, { estante: destino });
+
+      await batch.commit();
+
+      setIndividualDestinos((prev) => ({
+        ...prev,
+        [id]: destino,
+      }));
+
+      setMensaje(`Paquete movido a estante ${destino}.`);
+
+      await cargar();
+    } catch (e) {
+      console.error(e);
+      setMensaje("Error moviendo el paquete.");
+    } finally {
+      setMovingId(null);
+    }
+  }
+
+  useEffect(() => {
+    cargar();
+  }, []);
+
+  return (
+    <div style={{ padding: 20, maxWidth: 1100 }}>
+      <h1>Reorganización de depósito</h1>
+
+      <button onClick={cargar} disabled={loading || moving || movingId !== null}>
+        {loading ? "Cargando..." : "Recargar"}
+      </button>
+
+      {mensaje ? <p>{mensaje}</p> : null}
+
+      <div style={{ marginTop: 16 }}>
+        <h2>Resumen por estante</h2>
+
+        {resumenEstantes.length === 0 ? (
+          <p>No hay paquetes en depósito.</p>
+        ) : (
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setFiltroEstante("TODOS")}
+              style={{
+                border: filtroEstante === "TODOS" ? "2px solid #111" : "1px solid #ddd",
+                borderRadius: 8,
+                padding: 12,
+                minWidth: 140,
+                background: "#fff",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <div style={{ fontWeight: 600 }}>Todos</div>
+              <div>{rows.length} paquetes</div>
+            </button>
+
+            {resumenEstantes.map(([estante, cantidad]) => {
+              const activo = filtroEstante === estante;
+
+              return (
+                <button
+                  key={estante}
+                  type="button"
+                  onClick={() => toggleFiltroDesdeTarjeta(estante)}
+                  style={{
+                    border: activo ? "2px solid #111" : "1px solid #ddd",
+                    borderRadius: 8,
+                    padding: 12,
+                    minWidth: 140,
+                    background: activo ? "#f5f5f5" : "#fff",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  <div style={{ fontWeight: 600 }}>{estante}</div>
+                  <div>
+                    {cantidad} {cantidad === 1 ? "paquete" : "paquetes"}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <hr />
+
+      <div style={{ marginBottom: 16 }}>
+        <label htmlFor="filtroEstante">Filtrar por estante</label>
+        <br />
+        <select
+          id="filtroEstante"
+          value={filtroEstante}
+          onChange={(e) => setFiltroEstante(e.target.value)}
+        >
+          <option value="TODOS">Todos</option>
+          {estantesDisponibles.map((estante) => (
+            <option key={estante} value={estante}>
+              {estante}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div
+        style={{
+          marginBottom: 16,
+          display: "flex",
+          gap: 12,
+          alignItems: "end",
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <label htmlFor="destinoEstante">Mover seleccionados a</label>
+          <br />
+          <select
+  id="destinoEstante"
+  value={destinoEstante}
+  onChange={(e) => setDestinoEstante(e.target.value)}
+>
+  <option value="">Seleccionar estante</option>
+  {ESTANTES.map((estante) => (
+    <option key={estante} value={estante}>
+      {estante}
+    </option>
+  ))}
+</select>
+        </div>
+
+        <button
+          type="button"
+          onClick={moverSeleccionados}
+          disabled={moving || loading || movingId !== null}
+        >
+          {moving ? "Moviendo..." : "Mover seleccionados"}
+        </button>
+      </div>
+
+      <div style={{ marginBottom: 12, fontWeight: 600 }}>
+        Seleccionados: {selectedIds.length}
+      </div>
+
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            <th style={{ textAlign: "left", width: 40 }}>
+              <input
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleSelectAllVisible}
+              />
+            </th>
+            <th style={{ textAlign: "left" }}>Nombre</th>
+            <th style={{ textAlign: "left" }}>Empresa</th>
+            <th style={{ textAlign: "left" }}>Estante</th>
+            <th style={{ textAlign: "left" }}>Tipo</th>
+            <th style={{ textAlign: "left" }}>Acción</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {filteredRows.length === 0 ? (
+            <tr>
+              <td colSpan={6} style={{ paddingTop: 12 }}>
+                No hay paquetes para el filtro seleccionado.
+              </td>
+            </tr>
+          ) : (
+            filteredRows.map((r) => {
+              const valorSeleccionado = individualDestinos[r.id] ?? r.estante ?? "";
+              const estanteActual = r.estante.trim() || "";
+              const cambioPendiente = valorSeleccionado.trim() !== estanteActual;
+
+              return (
+                <tr key={r.id}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(r.id)}
+                      onChange={() => toggleSelected(r.id)}
+                    />
+                  </td>
+                  <td>{r.nombre}</td>
+                  <td>{r.empresa}</td>
+                  <td>{r.estante || "-"}</td>
+                  <td>{r.tipo}</td>
+                  <td>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <select
+                        value={valorSeleccionado}
+                        onChange={(e) => updateIndividualDestino(r.id, e.target.value)}
+                      >
+                        <option value="">Seleccionar</option>
+                        {estantesDisponibles.map((estante) => (
+                          <option key={estante} value={estante}>
+                            {estante}
+                          </option>
+                        ))}
+                      </select>
+
+                      <button
+                        type="button"
+                        onClick={() => moverIndividual(r.id, r.estante)}
+                        disabled={
+                          loading ||
+                          moving ||
+                          movingId !== null ||
+                          !cambioPendiente
+                        }
+                      >
+                        {movingId === r.id ? "Moviendo..." : "Mover"}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
