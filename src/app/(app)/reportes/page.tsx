@@ -12,6 +12,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import type { PackageDoc } from "@/types/package";
+import { useNotification } from "@/components/notifications/NotificationProvider";
 
 function getTodayDateValue() {
   return new Date().toISOString().slice(0, 10);
@@ -94,6 +95,7 @@ function StatCard({
 }
 
 export default function ReportesPage() {
+  const notify = useNotification();
   const [startDate, setStartDate] = useState(() => getMinusDaysDateValue(30));
   const [endDate, setEndDate] = useState(getTodayDateValue);
   const [loading, setLoading] = useState(false);
@@ -121,7 +123,7 @@ export default function ReportesPage() {
 
   const cargar = async () => {
     if (!startDate || !endDate) {
-      setMensaje("⚠️ Debes seleccionar Fecha de inicio y Fecha de fin.");
+      notify.warning("Debes seleccionar Fecha de inicio y Fecha de fin.");
       return;
     }
 
@@ -131,7 +133,7 @@ export default function ReportesPage() {
     );
 
     if (start > end) {
-      setMensaje("⚠️ La Fecha de inicio no puede ser mayor a la Fecha de fin.");
+      notify.warning("La Fecha de inicio no puede ser mayor a la Fecha de fin.");
       return;
     }
 
@@ -209,7 +211,7 @@ export default function ReportesPage() {
       setIngresos(ing);
       setEgresos(egr);
 
-      setMensaje("✅ Reporte actualizado.");
+      notify.success("Reporte actualizado.");
     } catch (e) {
       console.error(e);
       setMensaje("❌ Error cargando reporte.");

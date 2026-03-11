@@ -10,7 +10,6 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import type { Empresa, Tipo } from "@/types/package";
-import { useNotification } from "@/components/notifications/NotificationProvider";
 
 const generarBarcode = (): string => {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
@@ -36,8 +35,6 @@ export default function IngresoPage() {
   const [empresaCliente, setEmpresaCliente] = useState<Empresa>("SEUR");
   const [mensajeCliente, setMensajeCliente] = useState("");
   const [guardandoCliente, setGuardandoCliente] = useState(false);
-  const [fueraDeEstanteria, setFueraDeEstanteria] = useState(false);
-  const notify = useNotification();
 
   useEffect(() => {
     const input = document.getElementById("nombre");
@@ -49,12 +46,8 @@ export default function IngresoPage() {
     if (guardando) return;
 
     const nombreClean = nombre.trim();
-    const estanteClean = fueraDeEstanteria ? "s/n estante" : estante.trim();
+    const estanteClean = estante.trim();
 
-    if (!fueraDeEstanteria && !estante.trim()) {
-    notify.warning("Ingresá un número de estante o marcá 'Fuera de estantería'.");
-    return;
-}
     try {
       setGuardando(true);
       setMensaje("");
@@ -81,13 +74,12 @@ export default function IngresoPage() {
         updatedAt: serverTimestamp(),
       });
 
-      notify.success("Paquete registrado correctamente.");
+      setMensaje("✅ Paquete registrado correctamente.");
 
       setNombre("");
       setEmpresa("SEUR");
       setTipo("entrega");
       setEstante("");
-      setFueraDeEstanteria(false);
 
       barcodeRef.current?.focus();
     } catch (error) {
@@ -134,8 +126,8 @@ export default function IngresoPage() {
 
       await batch.commit();
 
-      notify.success(
-        `Se crearon ${cantidadFinal} paquetes de envío para ${empresaCliente}.`,
+      setMensajeCliente(
+        `✅ Se crearon ${cantidadFinal} paquetes de envío para ${empresaCliente}.`,
       );
       setCantidadCliente(CLAMP_CANTIDAD_MIN);
       setEmpresaCliente("SEUR");
@@ -171,39 +163,21 @@ export default function IngresoPage() {
                     className="w-full h-8 rounded-md border px-3"
                     id="nombre"
                     value={nombre}
-                    style={{ textTransform: "uppercase" }}
-                    onChange={(e) => setNombre(e.target.value.toUpperCase())}
+                    onChange={(e) => setNombre(e.target.value)}
                     autoComplete="off"
                   />
                 </div>
 
                 <div>
-                <label>Estante</label>
-                <div className="mt-1 flex items-center gap-3">
+                  <label>Estante</label>
+                  <br />
                   <input
                     className="w-full h-8 rounded-md border px-3"
                     value={estante}
-                    onChange={(e) => setEstante(e.target.value.replace(/\D/g, ""))}
+                    onChange={(e) => setEstante(e.target.value)}
                     autoComplete="off"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    disabled={fueraDeEstanteria}
                   />
-
-                  <label className="flex items-center gap-2 whitespace-nowrap text-sm">
-                    <input
-                      type="checkbox"
-                      checked={fueraDeEstanteria}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setFueraDeEstanteria(checked);
-                        if (checked) setEstante("");
-                      }}
-                    />
-                    Fuera de estantería
-                  </label>
                 </div>
-              </div>
 
                 <div>
                   <label>Empresa</label>

@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { EstadoPackage, Tipo } from "@/types/package";
+import { useNotification } from "@/components/notifications/NotificationProvider";
 
 const ESTANTES = ["1", "2", "3", "4", "5", "6", "7", "8", "s/n estante"];
 
@@ -55,6 +56,7 @@ function tipoBadgeClass(tipo: Tipo | "-") {
 }
 
 export default function ReorganizacionPage() {
+  const notify = useNotification();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -188,12 +190,12 @@ export default function ReorganizacionPage() {
     const destinoTrim = destino.trim();
 
     if (selectedIds.length === 0) {
-      setMensaje("Selecciona al menos un paquete.");
+      notify.warning("Selecciona al menos un paquete.");
       return;
     }
 
     if (!destinoTrim) {
-      setMensaje("Indica un estante destino.");
+      notify.warning("Indica un estante destino.");
       return;
     }
 
@@ -215,7 +217,7 @@ export default function ReorganizacionPage() {
       setSelectedIds([]);
       setMassiveDestino("");
       setMassiveOpen(false);
-      setMensaje(
+      notify.success(
         `${cantidad} ${cantidad === 1 ? "paquete movido" : "paquetes movidos"} a estante ${destinoTrim}.`,
       );
 
@@ -233,12 +235,12 @@ export default function ReorganizacionPage() {
     const actual = estanteActual.trim();
 
     if (!destino) {
-      setMensaje("Indica un estante destino para el paquete.");
+      notify.warning("Indica un estante destino para el paquete.");
       return;
     }
 
     if (destino === actual) {
-      setMensaje("Debes seleccionar un estante distinto al actual.");
+      notify.warning("Debes seleccionar un estante distinto al actual.");
       return;
     }
 
@@ -258,7 +260,7 @@ export default function ReorganizacionPage() {
         [id]: destino,
       }));
 
-      setMensaje(`Paquete movido a estante ${destino}.`);
+      notify.success(`Paquete movido a estante ${destino}.`);
 
       await cargar();
     } catch (e) {
@@ -401,14 +403,15 @@ export default function ReorganizacionPage() {
                 <th className="px-4 py-3">Paquete</th>
                 <th className="px-4 py-3">Empresa</th>
                 <th className="px-4 py-3">Tipo</th>
-                <th className="px-4 py-3">Acción</th>
+                <th className="px-4 py-3">Estante</th>
+                <th className="px-4 py-3">Nuevo estante</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-slate-100">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-6 text-sm text-slate-600">
+                  <td colSpan={6} className="px-4 py-6 text-sm text-slate-600">
                     No hay paquetes para el filtro seleccionado.
                   </td>
                 </tr>
@@ -430,22 +433,13 @@ export default function ReorganizacionPage() {
                       </td>
 
                       <td className="px-4 py-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="truncate font-medium text-slate-900">
-                              {r.nombre?.trim() ? r.nombre : "(Sin nombre)"}
-                            </div>
-                            <div className="mt-0.5 font-mono text-xs text-slate-500">
-                              ID: {r.id}
-                            </div>
+                        <div className="min-w-0">
+                          <div className="truncate font-medium text-slate-900">
+                            {r.nombre?.trim() ? r.nombre : "(Sin nombre)"}
                           </div>
-
-                          <span
-                            className="shrink-0 inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 font-mono text-xs font-semibold text-amber-800 ring-1 ring-amber-200"
-                            title="Estante actual"
-                          >
-                            Est. {r.estante?.trim() ? r.estante : "-"}
-                          </span>
+                          <div className="mt-0.5 font-mono text-xs text-slate-500">
+                            ID: {r.id}
+                          </div>
                         </div>
                       </td>
 
@@ -468,6 +462,15 @@ export default function ReorganizacionPage() {
                           ].join(" ")}
                         >
                           {r.tipo}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-3">
+                        <span
+                          className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 font-mono text-xs font-semibold text-amber-800 ring-1 ring-amber-200"
+                          title="Estante actual"
+                        >
+                          {r.estante?.trim() ? r.estante : "-"}
                         </span>
                       </td>
 

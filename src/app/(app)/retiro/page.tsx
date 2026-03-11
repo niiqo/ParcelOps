@@ -14,6 +14,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import type { PackageDoc, Tipo, Empresa, EstadoPackage } from "@/types/package";
+import { useNotification } from "@/components/notifications/NotificationProvider";
 
 function isTipo(v: unknown): v is Tipo {
   return v === "entrega" || v === "envio";
@@ -94,6 +95,7 @@ function Alert({ msg }: { msg: string }) {
 }
 
 export default function RetiroPage() {
+  const notify = useNotification();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -185,7 +187,7 @@ export default function RetiroPage() {
 
       await batch.commit();
 
-      setMensaje(`✅ Retiro registrado: ${rows.length} paquetes retirados.`);
+      notify.success(`Retiro registrado: ${rows.length} paquetes retirados.`);
       await cargarPendientes();
     } catch (e) {
       console.error(e);

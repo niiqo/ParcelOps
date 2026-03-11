@@ -13,6 +13,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import type { EstadoPackage, PackageDoc, PackageRow, Empresa, Tipo } from "@/types/package";
+import { useNotification } from "@/components/notifications/NotificationProvider";
 
 const ESTADO_LABEL: Record<EstadoPackage, string> = {
   EN_DEPOSITO: "En depósito",
@@ -72,6 +73,7 @@ function Alert({ msg }: { msg: string }) {
 }
 
 export default function BusquedaPage() {
+  const notify = useNotification();
   const [term, setTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [allActive, setAllActive] = useState<PackageRow[]>([]);
@@ -154,7 +156,7 @@ export default function BusquedaPage() {
         ),
       );
 
-      setMsg("✅ Entrega registrada.");
+      notify.success("Entrega registrada.");
     } catch (e) {
       console.error(e);
       setMsg("❌ Error registrando la entrega.");
@@ -182,7 +184,7 @@ export default function BusquedaPage() {
         ),
       );
 
-      setMsg("✅ Paquete marcado como pendiente de devolución.");
+      notify.success("Paquete marcado como pendiente de devolución.");
     } catch (e) {
       console.error(e);
       setMsg("❌ Error marcando el paquete como devolución.");
