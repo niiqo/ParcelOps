@@ -17,11 +17,11 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/ingreso", label: "Ingreso", icon: "📦" },
-  { href: "/paquetes", label: "Paquetes", icon: "🗂️" },
   { href: "/busqueda", label: "Búsqueda", icon: "🔎" },
+  { href: "/ingreso", label: "Ingreso", icon: "📦" },
   { href: "/retiro", label: "Retiros", icon: "🚚" },
   { href: "/reorganizacion", label: "Reorganización", icon: "🔄"},
+  { href: "/paquetes", label: "Paquetes", icon: "🗂️" },
   { href: "/reportes", label: "Reportes", icon: "📊" },
 ];
 
