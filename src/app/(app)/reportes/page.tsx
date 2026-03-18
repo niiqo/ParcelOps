@@ -13,6 +13,16 @@ import {
 } from "firebase/firestore";
 import type { PackageDoc } from "@/types/package";
 import { useNotification } from "@/components/notifications/NotificationProvider";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
+import MonthBarChart from "@/components/reportes/MonthBarChart";
 
 type ChartPoint = {
   dia: string;
@@ -42,17 +52,25 @@ function getTimestampRange(startDate: string, endDate: string) {
 }
 
 function getCurrentMonthRange() {
-const now = new Date();
+  const now = new Date();
 
-const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const end = new Date(
+    now.getFullYear(),
+    now.getMonth() + 1,
+    0,
+    23,
+    59,
+    59,
+    999,
+  );
 
-return {
-  start,
-  end,
-  startTimestamp: Timestamp.fromDate(start),
-  endTimestamp: Timestamp.fromDate(end),
-};
+  return {
+    start,
+    end,
+    startTimestamp: Timestamp.fromDate(start),
+    endTimestamp: Timestamp.fromDate(end),
+  };
 }
 
 function buildMonthDaysBase(date = new Date()) {
@@ -97,7 +115,9 @@ function Alert({ msg }: { msg: string }) {
       ? "border-amber-200 bg-amber-50 text-amber-900"
       : "border-emerald-200 bg-emerald-50 text-emerald-800";
 
-  return <div className={`rounded-md border px-3 py-2 text-sm ${cls}`}>{msg}</div>;
+  return (
+    <div className={`rounded-md border px-3 py-2 text-sm ${cls}`}>{msg}</div>
+  );
 }
 
 function StatCard({
@@ -112,11 +132,7 @@ function StatCard({
   totalLabel: string;
   totalValue: number;
   badge: { text: string; className: string };
-}) 
-
-
-
-{
+}) {
   return (
     <div className="rounded-2xl border bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -133,16 +149,23 @@ function StatCard({
 
       <div className="mt-3 space-y-2">
         {items.map((it) => (
-          <div key={it.label} className="flex items-center justify-between text-sm">
+          <div
+            key={it.label}
+            className="flex items-center justify-between text-sm"
+          >
             <span className="text-slate-600">{it.label}</span>
-            <span className="font-semibold text-slate-900 tabular-nums">{it.value}</span>
+            <span className="font-semibold text-slate-900 tabular-nums">
+              {it.value}
+            </span>
           </div>
         ))}
 
         <div className="mt-3 border-t pt-3">
           <div className="flex items-center justify-between text-sm">
             <span className="font-semibold text-slate-900">{totalLabel}</span>
-            <span className="font-semibold text-slate-900 tabular-nums">{totalValue}</span>
+            <span className="font-semibold text-slate-900 tabular-nums">
+              {totalValue}
+            </span>
           </div>
         </div>
       </div>
@@ -211,11 +234,12 @@ export default function ReportesPage() {
     );
 
     if (start > end) {
-      notify.warning("La Fecha de inicio no puede ser mayor a la Fecha de fin.");
+      notify.warning(
+        "La Fecha de inicio no puede ser mayor a la Fecha de fin.",
+      );
       return;
     }
 
-    setLoading(true);
     setMensaje("");
 
     try {
@@ -295,63 +319,80 @@ export default function ReportesPage() {
     } catch (e) {
       console.error(e);
       setMensaje("❌ Error cargando reporte.");
+    }
+  };
+
+  const cargarGraficosMesActual = async () => {
+    try {
+      const { startTimestamp, endTimestamp } = getCurrentMonthRange();
+      const packagesRef = collection(db, "packages");
+
+      const qRecibidos = query(
+        packagesRef,
+        where("tipo", "==", "entrega"),
+        where("fechaIngreso", ">=", startTimestamp),
+        where("fechaIngreso", "<=", endTimestamp),
+      );
+
+      const qEntregados = query(
+        packagesRef,
+        where("tipo", "==", "entrega"),
+        where("estado", "==", "ENTREGADO"),
+        where("fechaIngreso", ">=", startTimestamp),
+        where("fechaIngreso", "<=", endTimestamp),
+      );
+
+      const [snapRecibidos, snapEntregados] = await Promise.all([
+        getDocs(qRecibidos),
+        getDocs(qEntregados),
+      ]);
+
+      const recibidosDocs = snapRecibidos.docs.map(
+        (docSnap) => docSnap.data() as PackageDoc,
+      );
+
+      const entregadosDocs = snapEntregados.docs.map(
+        (docSnap) => docSnap.data() as PackageDoc,
+      );
+
+      setRecibidosPorDia(buildDailySeriesFromFechaIngreso(recibidosDocs));
+      setEntregadosPorDia(buildDailySeriesFromFechaIngreso(entregadosDocs));
+    } catch (error) {
+      console.error(error);
+      setMensaje("❌ Error cargando gráficos del mes.");
+    }
+  };
+
+  const cargarTodoInicial = async () => {
+    setLoading(true);
+    setMensaje("");
+
+    try {
+      await Promise.all([
+        cargar({ silentSuccess: true }),
+        cargarGraficosMesActual(),
+      ]);
+    } catch (error) {
+      console.error(error);
+      setMensaje("❌ Error cargando el informe.");
     } finally {
       setLoading(false);
     }
   };
 
-  const cargarGraficosMesActual = async () => {
-  try {
-    const { startTimestamp, endTimestamp } = getCurrentMonthRange();
-    const packagesRef = collection(db, "packages");
-
-    const qRecibidos = query(
-      packagesRef,
-      where("tipo", "==", "entrega"),
-      where("fechaIngreso", ">=", startTimestamp),
-      where("fechaIngreso", "<=", endTimestamp),
-    );
-
-    const qEntregados = query(
-      packagesRef,
-      where("tipo", "==", "entrega"),
-      where("estado", "==", "ENTREGADO"),
-      where("fechaIngreso", ">=", startTimestamp),
-      where("fechaIngreso", "<=", endTimestamp),
-    );
-
-    const [snapRecibidos, snapEntregados] = await Promise.all([
-      getDocs(qRecibidos),
-      getDocs(qEntregados),
-    ]);
-
-    const recibidosDocs = snapRecibidos.docs.map(
-      (docSnap) => docSnap.data() as PackageDoc,
-    );
-
-    const entregadosDocs = snapEntregados.docs.map(
-      (docSnap) => docSnap.data() as PackageDoc,
-    );
-
-    setRecibidosPorDia(buildDailySeriesFromFechaIngreso(recibidosDocs));
-    setEntregadosPorDia(buildDailySeriesFromFechaIngreso(entregadosDocs));
-  } catch (error) {
-    console.error(error);
-    setMensaje("❌ Error cargando gráficos del mes.");
-  }
-};
-
   useEffect(() => {
     if (didInitialLoadRef.current) return;
     didInitialLoadRef.current = true;
-    void cargar({ silentSuccess: true });
+    void cargarTodoInicial();
   }, []);
 
   return (
     <div className="relative">
       {loading ? <LoadingOverlay /> : null}
 
-      <div className={`space-y-4 ${loading ? "pointer-events-none select-none opacity-60" : ""}`}>
+      <div
+        className={`space-y-4 ${loading ? "pointer-events-none select-none opacity-60" : ""}`}
+      >
         {/* Header */}
         <div>
           <h2 className="text-base font-semibold text-slate-900">Reportes</h2>
@@ -384,7 +425,7 @@ export default function ReportesPage() {
             </div>
 
             <button
-              onClick={() => void cargar()}
+              onClick={() => void cargarTodoInicial()}
               disabled={loading}
               className={[
                 "inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium",
@@ -434,7 +475,8 @@ export default function ReportesPage() {
             title="Egresos"
             badge={{
               text: "Salidas",
-              className: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+              className:
+                "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
             }}
             items={[
               { label: "Entregado a cliente", value: egresos.ENTREGADO ?? 0 },
@@ -442,6 +484,19 @@ export default function ReportesPage() {
             ]}
             totalLabel="Total egresos"
             totalValue={egresos.total ?? 0}
+          />
+        </div>
+        <div className="grid gap-4 xl:grid-cols-2">
+          <MonthBarChart
+            title="Entregados a cliente"
+            subtitle="Paquetes ENTREGADOS, agrupados por fecha de ingreso del mes actual."
+            data={entregadosPorDia}
+          />
+
+          <MonthBarChart
+            title="Recibidos de repartidor"
+            subtitle="Paquetes ENVIADOS, agrupados por fecha de ingreso del mes actual."
+            data={recibidosPorDia}
           />
         </div>
       </div>
