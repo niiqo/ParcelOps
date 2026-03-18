@@ -14,6 +14,11 @@ import {
 import type { PackageDoc } from "@/types/package";
 import { useNotification } from "@/components/notifications/NotificationProvider";
 
+type ChartPoint = {
+  dia: string;
+  cantidad: number;
+};
+
 function getTodayDateValue() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -34,6 +39,53 @@ function getTimestampRange(startDate: string, endDate: string) {
     startTimestamp: Timestamp.fromDate(start),
     endTimestamp: Timestamp.fromDate(end),
   };
+}
+
+function getCurrentMonthRange() {
+const now = new Date();
+
+const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+return {
+  start,
+  end,
+  startTimestamp: Timestamp.fromDate(start),
+  endTimestamp: Timestamp.fromDate(end),
+};
+}
+
+function buildMonthDaysBase(date = new Date()) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  return Array.from({ length: daysInMonth }, (_, index) => ({
+    dia: String(index + 1).padStart(2, "0"),
+    cantidad: 0,
+  }));
+}
+
+function buildDailySeriesFromFechaIngreso(
+  docs: PackageDoc[],
+  date = new Date(),
+): ChartPoint[] {
+  const base = buildMonthDaysBase(date);
+
+  docs.forEach((doc) => {
+    const fecha = doc.fechaIngreso;
+    if (!fecha) return;
+
+    const jsDate = fecha.toDate();
+    const dia = jsDate.getDate();
+    const index = dia - 1;
+
+    if (index >= 0 && index < base.length) {
+      base[index].cantidad += 1;
+    }
+  });
+
+  return base;
 }
 
 function Alert({ msg }: { msg: string }) {
@@ -60,7 +112,11 @@ function StatCard({
   totalLabel: string;
   totalValue: number;
   badge: { text: string; className: string };
-}) {
+}) 
+
+
+
+{
   return (
     <div className="rounded-2xl border bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -130,6 +186,9 @@ export default function ReportesPage() {
     DEVUELTO: 0,
     total: 0,
   });
+
+  const [entregadosPorDia, setEntregadosPorDia] = useState<ChartPoint[]>([]);
+  const [recibidosPorDia, setRecibidosPorDia] = useState<ChartPoint[]>([]);
 
   const [mensaje, setMensaje] = useState("");
 
@@ -240,6 +299,47 @@ export default function ReportesPage() {
       setLoading(false);
     }
   };
+
+  const cargarGraficosMesActual = async () => {
+  try {
+    const { startTimestamp, endTimestamp } = getCurrentMonthRange();
+    const packagesRef = collection(db, "packages");
+
+    const qRecibidos = query(
+      packagesRef,
+      where("tipo", "==", "entrega"),
+      where("fechaIngreso", ">=", startTimestamp),
+      where("fechaIngreso", "<=", endTimestamp),
+    );
+
+    const qEntregados = query(
+      packagesRef,
+      where("tipo", "==", "entrega"),
+      where("estado", "==", "ENTREGADO"),
+      where("fechaIngreso", ">=", startTimestamp),
+      where("fechaIngreso", "<=", endTimestamp),
+    );
+
+    const [snapRecibidos, snapEntregados] = await Promise.all([
+      getDocs(qRecibidos),
+      getDocs(qEntregados),
+    ]);
+
+    const recibidosDocs = snapRecibidos.docs.map(
+      (docSnap) => docSnap.data() as PackageDoc,
+    );
+
+    const entregadosDocs = snapEntregados.docs.map(
+      (docSnap) => docSnap.data() as PackageDoc,
+    );
+
+    setRecibidosPorDia(buildDailySeriesFromFechaIngreso(recibidosDocs));
+    setEntregadosPorDia(buildDailySeriesFromFechaIngreso(entregadosDocs));
+  } catch (error) {
+    console.error(error);
+    setMensaje("❌ Error cargando gráficos del mes.");
+  }
+};
 
   useEffect(() => {
     if (didInitialLoadRef.current) return;
