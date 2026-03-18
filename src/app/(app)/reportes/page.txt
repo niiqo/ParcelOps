@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -94,30 +94,11 @@ function StatCard({
   );
 }
 
-function LoadingOverlay() {
-  return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center rounded-2xl bg-slate-100/80 backdrop-blur-[1px]">
-      <div className="flex flex-col items-center gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-lg font-bold text-white shadow-sm animate-pulse">
-          PO
-        </div>
-
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
-          <span>Cargando reporte...</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function ReportesPage() {
   const notify = useNotification();
-  const didInitialLoadRef = useRef(false);
-
   const [startDate, setStartDate] = useState(() => getMinusDaysDateValue(30));
   const [endDate, setEndDate] = useState(getTodayDateValue);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const [ingresos, setIngresos] = useState<Record<string, number>>({
     entrega: 0,
@@ -140,7 +121,7 @@ export default function ReportesPage() {
     return `${d1}/${m1}/${y1} → ${d2}/${m2}/${y2}`;
   }, [startDate, endDate]);
 
-  const cargar = async (options?: { silentSuccess?: boolean }) => {
+  const cargar = async () => {
     if (!startDate || !endDate) {
       notify.warning("Debes seleccionar Fecha de inicio y Fecha de fin.");
       return;
@@ -230,9 +211,7 @@ export default function ReportesPage() {
       setIngresos(ing);
       setEgresos(egr);
 
-      if (!options?.silentSuccess) {
-        notify.success("Reporte actualizado.");
-      }
+      notify.success("Reporte actualizado.");
     } catch (e) {
       console.error(e);
       setMensaje("❌ Error cargando reporte.");
@@ -241,109 +220,89 @@ export default function ReportesPage() {
     }
   };
 
-  useEffect(() => {
-    if (didInitialLoadRef.current) return;
-    didInitialLoadRef.current = true;
-    void cargar({ silentSuccess: true });
-  }, []);
-
   return (
-    <div className="relative">
-      {loading ? <LoadingOverlay /> : null}
+    <div className="space-y-4">
+      {/* Header */}
+      <div>
+        <h2 className="text-base font-semibold text-slate-900">Reportes</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Resumen de ingresos y egresos por rango de fechas.
+        </p>
+      </div>
 
-      <div className={`space-y-4 ${loading ? "pointer-events-none select-none opacity-60" : ""}`}>
-        {/* Header */}
-        <div>
-          <h2 className="text-base font-semibold text-slate-900">Reportes</h2>
-          <p className="mt-1 text-sm text-slate-600">
-            Resumen de ingresos y egresos por rango de fechas.
-          </p>
-        </div>
-
-        {/* Filters */}
-        <div className="rounded-2xl border bg-white p-4 shadow-sm">
-          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Fecha de inicio</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="h-10 w-full rounded-md border bg-white px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Fecha de fin</label>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="h-10 w-full rounded-md border bg-white px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-              />
-            </div>
-
-            <button
-              onClick={() => void cargar()}
-              disabled={loading}
-              className={[
-                "inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium",
-                "bg-slate-900 text-white hover:bg-slate-800",
-                "disabled:cursor-not-allowed disabled:bg-slate-300",
-              ].join(" ")}
-              title="Recargar conteos para el rango"
-            >
-              {loading ? "Cargando..." : "Recargar"}
-            </button>
+      {/* Filters */}
+      <div className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Fecha de inicio</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="h-10 w-full rounded-md border bg-white px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+            />
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-600">
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-              {rangoLabel}
-            </span>
-
-            <span className="text-xs text-slate-500">
-              Tip: por defecto muestra últimos 30 días.
-            </span>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Fecha de fin</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="h-10 w-full rounded-md border bg-white px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+            />
           </div>
 
-          {mensaje ? (
-            <div className="mt-3">
-              <Alert msg={mensaje} />
-            </div>
-          ) : null}
+          <button
+            onClick={cargar}
+            disabled={loading}
+            className={[
+              "inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium",
+              "bg-slate-900 text-white hover:bg-slate-800",
+              "disabled:cursor-not-allowed disabled:bg-slate-300",
+            ].join(" ")}
+            title="Recargar conteos para el rango"
+          >
+            {loading ? "Cargando..." : "Recargar"}
+          </button>
         </div>
 
-        {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <StatCard
-            title="Ingresos"
-            badge={{
-              text: "Altas",
-              className: "bg-sky-50 text-sky-700 ring-1 ring-sky-200",
-            }}
-            items={[
-              { label: "Entrega", value: ingresos.entrega ?? 0 },
-              { label: "Envío", value: ingresos.envio ?? 0 },
-            ]}
-            totalLabel="Total ingresos"
-            totalValue={ingresos.total ?? 0}
-          />
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+            {rangoLabel}
+          </span>
 
-          <StatCard
-            title="Egresos"
-            badge={{
-              text: "Salidas",
-              className: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
-            }}
-            items={[
-              { label: "Entregado a cliente", value: egresos.ENTREGADO ?? 0 },
-              { label: "Devuelto a repartidor", value: egresos.DEVUELTO ?? 0 },
-            ]}
-            totalLabel="Total egresos"
-            totalValue={egresos.total ?? 0}
-          />
+          <span className="text-xs text-slate-500">
+            Tip: por defecto muestra últimos 30 días.
+          </span>
         </div>
+
+        {mensaje ? <div className="mt-3"><Alert msg={mensaje} /></div> : null}
+      </div>
+
+      {/* Stats */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <StatCard
+          title="Ingresos"
+          badge={{ text: "Altas", className: "bg-sky-50 text-sky-700 ring-1 ring-sky-200" }}
+          items={[
+            { label: "Entrega", value: ingresos.entrega ?? 0 },
+            { label: "Envío", value: ingresos.envio ?? 0 },
+          ]}
+          totalLabel="Total ingresos"
+          totalValue={ingresos.total ?? 0}
+        />
+
+        <StatCard
+          title="Egresos"
+          badge={{ text: "Salidas", className: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" }}
+          items={[
+            { label: "Entregado a cliente", value: egresos.ENTREGADO ?? 0 },
+            { label: "Devuelto a repartidor", value: egresos.DEVUELTO ?? 0 },
+          ]}
+          totalLabel="Total egresos"
+          totalValue={egresos.total ?? 0}
+        />
       </div>
     </div>
   );
