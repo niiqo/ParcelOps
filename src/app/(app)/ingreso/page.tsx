@@ -226,18 +226,6 @@ export default function IngresoPage() {
               </select>
             </div>
 
-            <div>
-              <label className="text-sm font-medium">Tipo</label>
-              <select
-                className="mt-1 h-11 w-full rounded-md border px-3 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                value={tipo}
-                onChange={(e) => setTipo(e.target.value as Tipo)}
-              >
-                <option value="entrega">Entrega</option>
-                <option value="envio">Envío</option>
-              </select>
-            </div>
-
             <button
               type="submit"
               disabled={guardando}
