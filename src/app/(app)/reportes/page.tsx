@@ -51,19 +51,13 @@ function getTimestampRange(startDate: string, endDate: string) {
   };
 }
 
-function getCurrentMonthRange() {
-  const now = new Date();
+function getMonthRange(monthValue: string) {
+  const [yearStr, monthStr] = monthValue.split("-");
+  const year = Number(yearStr);
+  const monthIndex = Number(monthStr) - 1;
 
-  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-  const end = new Date(
-    now.getFullYear(),
-    now.getMonth() + 1,
-    0,
-    23,
-    59,
-    59,
-    999,
-  );
+  const start = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+  const end = new Date(year, monthIndex + 1, 0, 23, 59, 59, 999);
 
   return {
     start,
@@ -71,6 +65,14 @@ function getCurrentMonthRange() {
     startTimestamp: Timestamp.fromDate(start),
     endTimestamp: Timestamp.fromDate(end),
   };
+}
+
+function getCurrentMonthValue() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+
+  return `${year}-${month}`;
 }
 
 function buildMonthDaysBase(date = new Date()) {
@@ -324,7 +326,7 @@ export default function ReportesPage() {
 
   const cargarGraficosMesActual = async () => {
     try {
-      const { startTimestamp, endTimestamp } = getCurrentMonthRange();
+      const { startTimestamp, endTimestamp } = getMonthRange();
       const packagesRef = collection(db, "packages");
 
       const qRecibidos = query(
@@ -486,16 +488,16 @@ export default function ReportesPage() {
             totalValue={egresos.total ?? 0}
           />
         </div>
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <MonthBarChart
             title="Entregados a cliente"
-            subtitle="Paquetes ENTREGADOS, agrupados por fecha de ingreso del mes actual."
+            subtitle="ENTREGA de paquetes del mes actual."
             data={entregadosPorDia}
           />
 
           <MonthBarChart
             title="Recibidos de repartidor"
-            subtitle="Paquetes ENVIADOS, agrupados por fecha de ingreso del mes actual."
+            subtitle="INGRESO de paquetes del mes actual."
             data={recibidosPorDia}
           />
         </div>
