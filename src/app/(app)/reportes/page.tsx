@@ -75,10 +75,12 @@ function getCurrentMonthValue() {
   return `${year}-${month}`;
 }
 
-function buildMonthDaysBase(date = new Date()) {
-  const year = date.getFullYear();
-  const month = date.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+function buildMonthDaysBase(monthValue: string) {
+  const [yearStr, monthStr] = monthValue.split("-");
+  const year = Number(yearStr);
+  const monthIndex = Number(monthStr) - 1;
+
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
 
   return Array.from({ length: daysInMonth }, (_, index) => ({
     dia: String(index + 1).padStart(2, "0"),
@@ -88,9 +90,9 @@ function buildMonthDaysBase(date = new Date()) {
 
 function buildDailySeriesFromFechaIngreso(
   docs: PackageDoc[],
-  date = new Date(),
+  monthValue: string,
 ): ChartPoint[] {
-  const base = buildMonthDaysBase(date);
+  const base = buildMonthDaysBase(monthValue);
 
   docs.forEach((doc) => {
     const fecha = doc.fechaIngreso;
@@ -195,27 +197,24 @@ function LoadingOverlay() {
 export default function ReportesPage() {
   const notify = useNotification();
   const didInitialLoadRef = useRef(false);
-
   const [startDate, setStartDate] = useState(() => getMinusDaysDateValue(30));
   const [endDate, setEndDate] = useState(getTodayDateValue);
   const [loading, setLoading] = useState(true);
-
   const [ingresos, setIngresos] = useState<Record<string, number>>({
     entrega: 0,
     envio: 0,
     total: 0,
   });
-
   const [egresos, setEgresos] = useState<Record<string, number>>({
     ENTREGADO: 0,
     DEVUELTO: 0,
     total: 0,
   });
-
   const [entregadosPorDia, setEntregadosPorDia] = useState<ChartPoint[]>([]);
   const [recibidosPorDia, setRecibidosPorDia] = useState<ChartPoint[]>([]);
-
   const [mensaje, setMensaje] = useState("");
+  const [mesEntregados, setMesEntregados] = useState(() => getCurrentMonthValue());
+  const [mesRecibidos, setMesRecibidos] = useState(() => getCurrentMonthValue());
 
   const rangoLabel = useMemo(() => {
     if (!startDate || !endDate) return "Rango sin definir";
@@ -324,24 +323,33 @@ export default function ReportesPage() {
     }
   };
 
-  const cargarGraficosMesActual = async () => {
+  const cargarGraficos = async () => {
     try {
-      const { startTimestamp, endTimestamp } = getMonthRange();
+      const {
+        startTimestamp: startRecibidos,
+        endTimestamp: endRecibidos,
+      } = getMonthRange(mesRecibidos);
+
+      const {
+        startTimestamp: startEntregados,
+        endTimestamp: endEntregados,
+      } = getMonthRange(mesEntregados);
+
       const packagesRef = collection(db, "packages");
 
       const qRecibidos = query(
         packagesRef,
         where("tipo", "==", "entrega"),
-        where("fechaIngreso", ">=", startTimestamp),
-        where("fechaIngreso", "<=", endTimestamp),
+        where("fechaIngreso", ">=", startRecibidos),
+        where("fechaIngreso", "<=", endRecibidos),
       );
 
       const qEntregados = query(
         packagesRef,
         where("tipo", "==", "entrega"),
         where("estado", "==", "ENTREGADO"),
-        where("fechaIngreso", ">=", startTimestamp),
-        where("fechaIngreso", "<=", endTimestamp),
+        where("fechaIngreso", ">=", startEntregados),
+        where("fechaIngreso", "<=", endEntregados),
       );
 
       const [snapRecibidos, snapEntregados] = await Promise.all([
@@ -357,11 +365,16 @@ export default function ReportesPage() {
         (docSnap) => docSnap.data() as PackageDoc,
       );
 
-      setRecibidosPorDia(buildDailySeriesFromFechaIngreso(recibidosDocs));
-      setEntregadosPorDia(buildDailySeriesFromFechaIngreso(entregadosDocs));
+      setRecibidosPorDia(
+        buildDailySeriesFromFechaIngreso(recibidosDocs, mesRecibidos),
+      );
+
+      setEntregadosPorDia(
+        buildDailySeriesFromFechaIngreso(entregadosDocs, mesEntregados),
+      );
     } catch (error) {
       console.error(error);
-      setMensaje("❌ Error cargando gráficos del mes.");
+      setMensaje("❌ Error cargando gráficos.");
     }
   };
 
@@ -372,7 +385,7 @@ export default function ReportesPage() {
     try {
       await Promise.all([
         cargar({ silentSuccess: true }),
-        cargarGraficosMesActual(),
+        cargarGraficos(),
       ]);
     } catch (error) {
       console.error(error);
@@ -387,6 +400,11 @@ export default function ReportesPage() {
     didInitialLoadRef.current = true;
     void cargarTodoInicial();
   }, []);
+  
+  useEffect(() => {
+    if (!didInitialLoadRef.current) return;
+    void cargarGraficos();
+  }, [mesEntregados, mesRecibidos]);
 
   return (
     <div className="relative">
@@ -488,17 +506,21 @@ export default function ReportesPage() {
             totalValue={egresos.total ?? 0}
           />
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 xl:grid-cols-2">
           <MonthBarChart
             title="Entregados a cliente"
-            subtitle="ENTREGA de paquetes del mes actual."
+            subtitle="Paquetes tipo entrega con estado ENTREGADO, agrupados por fecha de ingreso."
             data={entregadosPorDia}
+            monthValue={mesEntregados}
+            onMonthChange={(value) => setMesEntregados(value)}
           />
 
           <MonthBarChart
             title="Recibidos de repartidor"
-            subtitle="INGRESO de paquetes del mes actual."
+            subtitle="Paquetes tipo entrega, agrupados por fecha de ingreso."
             data={recibidosPorDia}
+            monthValue={mesRecibidos}
+            onMonthChange={(value) => setMesRecibidos(value)}
           />
         </div>
       </div>
