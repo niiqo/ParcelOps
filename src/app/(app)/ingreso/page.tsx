@@ -166,12 +166,12 @@ export default function IngresoPage() {
         className="grid gap-6"
         style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}
       >
-        <div className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border bg-white p-4 shadow-sm flex h-full flex-col">
           <h2 className="mb-4 border-b pb-2 text-lg font-semibold text-slate-900">
             Ingreso de Paquete Transportista
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="flex flex-1 flex-col gap-4">
             <div>
               <label className="text-sm font-medium">Nombre destinatario</label>
               <input
@@ -226,24 +226,26 @@ export default function IngresoPage() {
               </select>
             </div>
 
-            <button
-              type="submit"
-              disabled={guardando}
-              className="inline-flex h-10 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              {guardando ? "Guardando..." : "Guardar"}
-            </button>
+            <div className="mt-auto flex justify-end pt-4">
+              <button
+                type="submit"
+                disabled={guardando}
+                className="inline-flex h-10 min-w-[110px] items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {guardando ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
           </form>
 
           {mensaje ? <p className="mt-3 text-sm text-slate-700">{mensaje}</p> : null}
         </div>
 
-        <div className="rounded-2xl border bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border bg-white p-4 shadow-sm flex h-full flex-col">
           <h2 className="mb-4 border-b pb-2 text-lg font-semibold text-slate-900">
             Ingreso de Paquete Cliente
           </h2>
 
-          <form onSubmit={handleSubmitCliente} className="space-y-4">
+          <form onSubmit={handleSubmitCliente} className="flex flex-1 flex-col gap-4">
             <div>
               <label htmlFor="cantidad-cliente" className="text-sm font-medium">
                 Cantidad
@@ -305,13 +307,15 @@ export default function IngresoPage() {
               </select>
             </div>
 
-            <button
-              type="submit"
-              disabled={guardandoCliente}
-              className="inline-flex h-10 items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              {guardandoCliente ? "Guardando..." : "Guardar"}
-            </button>
+            <div className="mt-auto flex justify-end pt-4">
+              <button
+                type="submit"
+                disabled={guardandoCliente}
+                className="inline-flex h-10 min-w-[110px] items-center justify-center rounded-md bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {guardandoCliente ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
           </form>
 
           {mensajeCliente ? (
